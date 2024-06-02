@@ -1,9 +1,11 @@
+use std::{cell::RefCell, rc::Rc};
+
 // 0xE8F - 0x200 = 0xC8F = 3215 bytes
 const MAX_PROGRAM_SIZE : usize = 3215usize;
 
-pub struct Cpu<'a> {
+pub struct Cpu {
     mem: Vec<u8>,
-    d_buffer: Option<&'a mut Vec<u8>>,
+    d_buffer: Rc<RefCell<Vec<u8>>>,
     // general purpose registers V0 to VF, 8bits wide
     gp_registers: [u8; 16],
     // address register 'I', 16bit wide but addresses are only 12bit wide
@@ -18,8 +20,7 @@ pub struct Cpu<'a> {
     sound_timer: u8,
 }
 
-
-impl<'a> Cpu<'a> {
+impl Cpu {
     pub fn init() -> Self {
         return Cpu {
             mem: vec![0u8; 4096],
@@ -45,7 +46,7 @@ impl<'a> Cpu<'a> {
 
 		Ok(())
 	}
-	pub fn get_mem(self: &'a Self) -> &'a Vec<u8> {
+	pub fn get_mem(self: &Self) -> &Vec<u8> {
 		&self.mem
 	}
 }
