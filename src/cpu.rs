@@ -84,7 +84,7 @@ impl Cpu {
 					// execute machine language subroutine at addr NNN
 					// this instruction is only on RCA COSMAC VIP (the original implementation of chip8)
 					// so ignore this instruction
-					()
+					self.pc += 2;
 				}
 				else {
 					// instruction == 0x00E(0|E)
@@ -93,6 +93,7 @@ impl Cpu {
 							// instruction == 0x00E0
 							// clear the screen
 							self.d_buffer.borrow_mut().fill(0);
+							self.pc += 2;
 						}
 						0xee => {
 							// instruction == 0x00EE
@@ -104,7 +105,8 @@ impl Cpu {
 							if !self.is_valid_program_addr(addr) {
 								return Err(ExecuteError::BadJumpAddr);
 							}
-							self.pc = addr;
+							// the returned address will be the instruction calling the subroutine so skip it
+							self.pc = addr + 2;
 						}
 						_ => {
 							return Err(ExecuteError::BadInstruction);
@@ -135,6 +137,7 @@ impl Cpu {
 				if self.gp_registers[x] == nn {
 					self.pc += 2;
 				}
+				self.pc += 2;
 			}
 			0x4000 => {
 				// instruction == 0x4XNN
@@ -142,6 +145,7 @@ impl Cpu {
 				if self.gp_registers[x] != nn {
 					self.pc += 2;
 				}
+				self.pc += 2;
 			}
 			0x5000 => {
 				if instruction & 0x000f != 0 {
@@ -152,16 +156,19 @@ impl Cpu {
 				if self.gp_registers[x] == self.gp_registers[y] {
 					self.pc += 2;
 				}
+				self.pc += 2;
 			}
 			0x6000 => {
 				// instruction == 0x6XNN
 				// store number nn in register VX
 				self.gp_registers[x] = nn;
+				self.pc += 2;
 			}
 			0x7000 => {
 				// instruction == 0x7XNN
 				// add value NN to register VX
 				self.gp_registers[x] = self.gp_registers[x].wrapping_add(nn);
+				self.pc += 2;
 			}
 			0x8000 => {
 				match n {
@@ -169,21 +176,25 @@ impl Cpu {
 						// instruction == 0x8XY0
 						// store value of VY in VX
 						self.gp_registers[x] = self.gp_registers[y];
+						self.pc += 2;
 					}
 					0x1 => {
 						// instruction == 0x8XY1
 						// set VX = VX | VY
 						self.gp_registers[x] |= self.gp_registers[y];
+						self.pc += 2;
 					}
 					0x2 => {
 						// instruction == 0x8XY2
 						// set VX = VX & VY
 						self.gp_registers[x] &= self.gp_registers[y];
+						self.pc += 2;
 					}
 					0x3 => {
 						// instruction == 0x8XY3
 						// set VX = VX ^ VY
 						self.gp_registers[x] ^= self.gp_registers[y];
+						self.pc += 2;
 					}
 					0x4 => {
 						// instruction == 0x8XY4
@@ -200,6 +211,7 @@ impl Cpu {
 								self.gp_registers[0xf] = 1;
 							}
 						}
+						self.pc += 2;
 					}
 					0x5 => {
 						// instruction == 0x8XY5
@@ -216,12 +228,14 @@ impl Cpu {
 								self.gp_registers[0xf] = 0;
 							}
 						}
+						self.pc += 2;
 					}
 					0x6 => {
 						// instruction == 0x8XY6
 						// set VX = VY >> 1, set VF to the least significant bit of VY before shift. VY is unchanged
 						self.gp_registers[x] = self.gp_registers[y] >> 1;
 						self.gp_registers[0xf] = self.gp_registers[y] & 0x1;
+						self.pc += 2;
 					}
 					0x7 => {
 						// instruction == 0x8XY7
@@ -238,12 +252,14 @@ impl Cpu {
 								self.gp_registers[0xf] = 0;
 							}
 						}
+						self.pc += 2;
 					}
 					0xE => {
 						// instruction == 0x8XYE
 						// set VX = VY << 1, set VF to the most significant bit of VY before shift. VY is unchanged
 						self.gp_registers[x] = self.gp_registers[y] << 1;
 						self.gp_registers[0xf] = self.gp_registers[y] & 0x80;
+						self.pc += 2;
 					}
 					_ => {
 						return Err(ExecuteError::BadInstruction);
@@ -259,22 +275,26 @@ impl Cpu {
 				if self.gp_registers[x] != self.gp_registers[y] {
 					self.pc += 2;
 				}
+				self.pc += 2;
 			}
 			0xa000 => {
 				// instruction == 0xANNN
 				// store memory address NNN in I
 				self.i = nnn as u16;
+				self.pc += 2;
 			}
 			0xb000 => {
 				// instruction == 0xBNNN
 				// jump to address V0 + NNN
 				self.pc = self.gp_registers[0] as usize + nnn;
+				self.pc += 2;
 			}
 			0xc000 => {
 				// instruction == 0xCXNN
 				// set VX to random number with the mask NN
 				let random = rand::random::<u8>();
 				self.gp_registers[x] = random & nn;
+				self.pc += 2;
 			}
 			0xd000 => {
 				// instruction == 0xDXYN
@@ -288,6 +308,7 @@ impl Cpu {
 				else {
 					self.gp_registers[0xf] = 0x00;
 				}
+				self.pc += 2;
 			}
 			0xe000 => {
 				match instruction & 0xff {
@@ -298,6 +319,7 @@ impl Cpu {
 						if self.is_key_pressed && self.last_key_pressed == self.gp_registers[x] {
 							self.pc += 2;
 						}
+						self.pc += 2;
 					}
 					0xa1 => {
 						// instruction == 0xEXA1
@@ -308,6 +330,7 @@ impl Cpu {
 						{
 							self.pc += 2;
 						}
+						self.pc += 2;
 					}
 					_ => {
 						return Err(ExecuteError::BadInstruction);
@@ -320,6 +343,7 @@ impl Cpu {
 						// instruction == 0xFX07
 						// store current value of delay timer in VX
 						self.gp_registers[x] = self.delay_timer;
+						self.pc += 2;
 					}
 					0x0A => {
 						// instruction == 0xFX0A
@@ -328,26 +352,31 @@ impl Cpu {
 							self.gp_registers[x] = self.last_key_pressed;
 							sleep(Duration::from_millis(60));
 						}
+						self.pc += 2;
 					}
 					0x15 => {
 						// instruction == 0xFX15
 						// set the delay timer to the value of VX
 						self.delay_timer = self.gp_registers[x];
+						self.pc += 2;
 					}
 					0x18 => {
 						// instruction == 0xFX18
 						// set the sound timer to the value of VX
 						self.sound_timer = self.gp_registers[x];
+						self.pc += 2;
 					}
 					0x1e => {
 						// instruction == 0xFX1E
 						// Add the value stored in VX to I
 						self.i += self.gp_registers[x] as u16;
+						self.pc += 2;
 					}
 					0x29 => {
 						// instruction == 0xFX29
 						// set I to memory address of sprite data corresponding to the digit stored in register VX
 						todo!("Implement preset sprite data for 0x00 to 0x0F");
+						self.pc += 2;
 					}
 					0x33 => {
 						// instruction == 0xFX33
@@ -359,6 +388,7 @@ impl Cpu {
 						self.mem[addr] = vx / 100;
 						self.mem[addr + 1] = (vx % 100) / 10;
 						self.mem[addr + 2] = vx % 10;
+						self.pc += 2;
 					}
 					0x55 => {
 						// instruction == 0xFX55
@@ -367,6 +397,7 @@ impl Cpu {
 						let addr = self.i as usize;
 						self.mem[addr..=addr + x].copy_from_slice(&self.gp_registers[0..=x]);
 						self.i += (x + 1) as u16;
+						self.pc += 2;
 					}
 					0x65 => {
 						// instruction == 0xFX65
@@ -375,6 +406,7 @@ impl Cpu {
 						let addr = self.i as usize;
 						self.gp_registers[0..=x].copy_from_slice(&self.mem[addr..=addr+x]);
 						self.i += (x + 1) as u16;
+						self.pc += 2;
 					}
 					_ => {
 						return Err(ExecuteError::BadInstruction);
@@ -385,7 +417,7 @@ impl Cpu {
 				return Err(ExecuteError::BadInstruction);
 			}
 		}
-		self.pc += 2;
+
 		Ok(())
 	}
 	#[inline]
