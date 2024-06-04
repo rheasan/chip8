@@ -1,37 +1,55 @@
-use std::{cell::RefCell, rc::Rc, thread::sleep, time::Duration};
+use std::{cell::RefCell, fmt::Debug, rc::Rc, thread::sleep, time::Duration};
 
 // 0xE8F - 0x200 = 0xC8F = 3215 bytes
 pub const MAX_PROGRAM_SIZE : usize = 3215usize;
-const WIDTH: usize = 64;
-const HEIGHT: usize = 32;
+pub const WIDTH: usize = 64;
+pub const HEIGHT: usize = 32;
 
 pub struct Cpu {
-    mem: Vec<u8>,
-    d_buffer: Rc<RefCell<Vec<u8>>>,
+    pub mem: Vec<u8>,
+    pub d_buffer: Rc<RefCell<Vec<u8>>>,
     // general purpose registers V0 to VF, 8bits wide
-    gp_registers: [u8; 16],
+    pub gp_registers: [u8; 16],
     // address register 'I', 16bit wide but addresses are only 12bit wide
 	// only addresses in the range 0x200 - 0xE8F are available for programs
 	// first 0x200 bytes are reserved for the interpreter, and final 352 bytes are reserved for 
 	// "variables and display refresh"
-	i: u16,
-	pc: usize,
-	sp: u8,
-	stack: Vec<usize>,
-    delay_timer: u8,
-    sound_timer: u8,
-	program_end_addr: usize,
+	pub i: u16,
+	pub pc: usize,
+	pub sp: u8,
+	pub stack: Vec<usize>,
+	pub delay_timer: u8,
+	pub sound_timer: u8,
+	pub program_end_addr: usize,
 
 	// FIXME: this state should not be owned by the CPU
-	is_key_pressed: bool,
-	last_key_pressed: u8
+	pub is_key_pressed: bool,
+	pub last_key_pressed: u8
 }
+impl Debug for Cpu {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("Cpu")
+			.field("gp_registers", &self.gp_registers)
+			.field("i", &self.i)
+			.field("pc", &self.pc)
+			.field("sp", &self.sp)
+			.field("stack", &self.stack)
+			.field("delay_timer", &self.delay_timer)
+			.field("sound_timer", &self.sound_timer)
+			.field("program_end_addr", &self.program_end_addr)
+			.field("is_key_pressed", &self.is_key_pressed)
+			.field("last_key_pressed", &self.last_key_pressed)
+			.finish()
+	}
+}
+
+#[derive(Debug)]
 pub enum ExecuteError{
 	FailedToReadInstruction,
-	BadInstruction,
-	MaxCallDepthReached,
-	BadReturn,
-	BadJumpAddr,
+	BadInstruction(u16),
+	MaxCallDepthReached(u16),
+	BadReturn(u16),
+	BadJumpAddr(u16),
 	InvalidSprite
 }
 
@@ -55,7 +73,7 @@ impl Cpu {
 	pub fn add_program(&mut self, program: &Vec<u8>) -> Result<(), std::io::Error> {
 		if program.len() > MAX_PROGRAM_SIZE {
 			return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, 
-				format!("Max supported program size if 1183 bytes. Received {} bytes", program.len())));
+				format!("Max supported program size if {} bytes. Received {} bytes", MAX_PROGRAM_SIZE, program.len())));
 		}
 
 		for i in 0..program.len() {
@@ -65,8 +83,38 @@ impl Cpu {
 		
 		Ok(())
 	}
-	pub fn get_mem(self: &Self) -> &Vec<u8> {
-		&self.mem
+	pub fn reset(&mut self) -> () {
+		self.i = 0;
+		self.pc = 0x0200;
+		self.sp = 0;
+		self.stack.clear();
+		self.delay_timer = 0;
+		self.sound_timer = 0;
+		self.is_key_pressed = false;
+		self.last_key_pressed = 0x0;
+		self.mem[0x200..=self.program_end_addr].fill(0);
+	}
+	
+	pub fn dump(&self, dump_d_buffer: bool, program_bytes: usize) {
+		println!("State: {:?}", self);
+
+		println!("\n Display buffer: ");
+		if dump_d_buffer {
+			let d_buffer = self.d_buffer.borrow();
+			for (i, e) in d_buffer.iter().enumerate() {
+				print!("{}", e&1);
+				if i != 0 && (i+1)%WIDTH == 0 {
+					print!("\n");
+				}
+			}
+		}
+
+		if program_bytes > 0 {
+			println!("\n Loaded Program: (total program length {} bytes)", self.program_end_addr - 0x200);
+			for i in &self.mem[0x200..program_bytes+0x200] {
+				println!("{:#04x}", i);
+			}
+		}
 	}
 	pub fn step(&mut self) -> Result<(), ExecuteError> {
 		let instruction = self.get_next_instruction()?;
@@ -99,17 +147,17 @@ impl Cpu {
 							// instruction == 0x00EE
 							// return from a subroutine
 							if self.stack.len() == 0 {
-								return Err(ExecuteError::BadReturn);
+								return Err(ExecuteError::BadReturn(instruction));
 							}
 							let addr = self.stack.pop().unwrap();
 							if !self.is_valid_program_addr(addr) {
-								return Err(ExecuteError::BadJumpAddr);
+								return Err(ExecuteError::BadJumpAddr(instruction));
 							}
 							// the returned address will be the instruction calling the subroutine so skip it
 							self.pc = addr + 2;
 						}
 						_ => {
-							return Err(ExecuteError::BadInstruction);
+							return Err(ExecuteError::BadInstruction(instruction));
 						}
 					}
 				}
@@ -118,7 +166,7 @@ impl Cpu {
 				// instruction == 0x1NNN
 				// jump to address NNN
 				if !self.is_valid_program_addr(nnn) {
-					return Err(ExecuteError::BadJumpAddr);
+					return Err(ExecuteError::BadJumpAddr(instruction));
 				}
 				self.pc = nnn;
 			}
@@ -126,7 +174,7 @@ impl Cpu {
 				// instruction == 0x2NNN
 				// execute subroutine starting at address NNN
 				if self.stack.len() == 16 {
-					return Err(ExecuteError::MaxCallDepthReached);
+					return Err(ExecuteError::MaxCallDepthReached(instruction));
 				}
 				self.stack.push(self.pc);
 				self.pc = nnn;
@@ -149,7 +197,7 @@ impl Cpu {
 			}
 			0x5000 => {
 				if instruction & 0x000f != 0 {
-					return Err(ExecuteError::BadInstruction);
+					return Err(ExecuteError::BadInstruction(instruction));
 				}
 				// instruction === 0x5XY0
 				// skip the following instruction if the value of VX == VY
@@ -262,13 +310,13 @@ impl Cpu {
 						self.pc += 2;
 					}
 					_ => {
-						return Err(ExecuteError::BadInstruction);
+						return Err(ExecuteError::BadInstruction(instruction));
 					}
 				}
 			}
 			0x9000 => {
 				if (instruction & 0x000f) != 0 {
-					return Err(ExecuteError::BadInstruction);
+					return Err(ExecuteError::BadInstruction(instruction));
 				}
 				// instruction == 0x9XY0
 				// skip the following instruction if VX != VY
@@ -333,7 +381,7 @@ impl Cpu {
 						self.pc += 2;
 					}
 					_ => {
-						return Err(ExecuteError::BadInstruction);
+						return Err(ExecuteError::BadInstruction(instruction));
 					}
 				}
 			}
@@ -409,12 +457,12 @@ impl Cpu {
 						self.pc += 2;
 					}
 					_ => {
-						return Err(ExecuteError::BadInstruction);
+						return Err(ExecuteError::BadInstruction(instruction));
 					}
 				}
 			}
 			_ => {
-				return Err(ExecuteError::BadInstruction);
+				return Err(ExecuteError::BadInstruction(instruction));
 			}
 		}
 
