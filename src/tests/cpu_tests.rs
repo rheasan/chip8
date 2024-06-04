@@ -1,7 +1,6 @@
 #[cfg(test)]
-mod tests {
+mod cpu_tests {
 use rand::{Rng, RngCore};
-
 use crate::cpu::Cpu;
 	#[test]
 	fn large_program_fails() {
