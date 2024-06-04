@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc, thread::sleep, time::Duration};
 
 // 0xE8F - 0x200 = 0xC8F = 3215 bytes
-const MAX_PROGRAM_SIZE : usize = 3215usize;
+pub const MAX_PROGRAM_SIZE : usize = 3215usize;
 const WIDTH: usize = 64;
 const HEIGHT: usize = 32;
 
@@ -59,9 +59,9 @@ impl Cpu {
 		}
 
 		for i in 0..program.len() {
-			self.mem[200 + i] = program[i];
+			self.mem[0x200 + i] = program[i];
 		}
-		self.program_end_addr = 200 + program.len();
+		self.program_end_addr = 0x200 + program.len();
 		
 		Ok(())
 	}
