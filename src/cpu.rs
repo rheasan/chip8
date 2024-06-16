@@ -120,8 +120,8 @@ impl Cpu {
 		let instruction = self.get_next_instruction()?;
 		let nnn = (instruction & 0x0fff) as usize;
 		// x only contains 4 bits so can access gp_resgisters without bound check
-		let x = (instruction & 0x0f00 >> 8) as usize;
-		let y = (instruction & 0x00f0 >> 4) as usize;
+		let x = ((instruction & 0x0f00) >> 8) as usize;
+		let y = ((instruction & 0x00f0) >> 4) as usize;
 		let nn = (instruction & 0x00ff) as u8;
 		let n = (instruction & 0x000f) as u8;
 
