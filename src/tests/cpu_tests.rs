@@ -17,7 +17,7 @@ fn program_init_success() {
 
 	let res = chip8.add_program(&program);
 	assert!(res.is_ok());
-	let mem = chip8.get_mem();
+	let mem = &chip8.mem;
 	// 0..200 bytes are reserverd for the emulator. program starts from 0x200
 	for i in 0..0x200 {
 		assert_eq!(mem[i], 0u8);
