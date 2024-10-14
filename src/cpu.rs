@@ -214,7 +214,7 @@ impl Cpu {
 			}
 			0x7000 => {
 				// instruction == 0x7XNN
-				// add value NN to register VX
+				// add value NN to register VX (wrapping addition)
 				self.gp_registers[x] = self.gp_registers[x].wrapping_add(nn);
 				self.pc += 2;
 			}
@@ -264,18 +264,12 @@ impl Cpu {
 					0x5 => {
 						// instruction == 0x8XY5
 						// set VX = VX - VY. set VF = 0x00 if borrow occurs, otherwise set VF = 0x01
-						let t = self.gp_registers[x].checked_sub(self.gp_registers[y]);
-						match t {
-							Some(val) => {
-								self.gp_registers[x] = val;
-								self.gp_registers[0xf] = 1;
-							}
-							None => {
-								// subtraction underflowed
-								self.gp_registers[x] = 0xff - (self.gp_registers[y] - self.gp_registers[x]) + 0x1;
-								self.gp_registers[0xf] = 0;
-							}
+						if self.gp_registers[x] >= self.gp_registers[y] {
+							self.gp_registers[0xf] = 0x1;
+						} else {
+							self.gp_registers[0xf] = 0x0;
 						}
+						self.gp_registers[x] = self.gp_registers[x].wrapping_sub(self.gp_registers[y]);
 						self.pc += 2;
 					}
 					0x6 => {
@@ -288,18 +282,12 @@ impl Cpu {
 					0x7 => {
 						// instruction == 0x8XY7
 						// set VX = VY - VX. set VF = 0x00 if borrow occcurs, otherwise set VF = 0x01
-						let t = self.gp_registers[y].checked_sub(self.gp_registers[x]);
-						match t {
-							Some(val) => {
-								self.gp_registers[x] = val;
-								self.gp_registers[0xf] = 1;
-							}
-							None => {
-								// subtraction underflowed
-								self.gp_registers[x] = 0xff - (self.gp_registers[x] - self.gp_registers[y]) + 0x1;
-								self.gp_registers[0xf] = 0;
-							}
+						if self.gp_registers[x] <= self.gp_registers[y] {
+							self.gp_registers[0xf] = 0x1;
+						} else {
+							self.gp_registers[0xf] = 0x0;
 						}
+						self.gp_registers[x] = self.gp_registers[y].wrapping_sub(self.gp_registers[x]);
 						self.pc += 2;
 					}
 					0xE => {

@@ -172,3 +172,252 @@ fn instruction_0x5xy0() {
 	cpu.step().expect("should execute instruction (0x5XY0)");
 	assert_eq!(cpu.pc, 0x0202, "should not skip instruction at 0x0202");
 }
+
+#[test]
+fn instruction_0x6xnn() {
+	// instruction == 0x6XNN
+	// store number nn in register VX
+
+	let mut cpu = Cpu::init();
+	let program: Vec<u8> = vec![0x6a, 0x51, 0x01, 0x11];
+
+	// program -> 0x6a51, 0x0111
+	//              ^       ^   
+	// address -> 0x0200, 0x0202
+
+	cpu.add_program(&program).expect("should be able to add the program");
+	cpu.step().expect("should execute instruction (0x6XNN)");
+
+	assert_eq!(cpu.gp_registers[0xa], 0x51, "Register 0xa should contain 0x51");
+}
+
+#[test]
+fn instruction_0x7xnn() {
+	// instruction == 0x7XNN
+	// add value NN to register VX (wrapping addition)
+	let mut cpu = Cpu::init();
+	let program: Vec<u8> = vec![0x7a, 0xff, 0x01, 0x11];
+	cpu.gp_registers[0xa] = 0xff;
+
+	// program -> 0x7aff, 0x0111
+	//              ^       ^   
+	// address -> 0x0200, 0x0202
+
+	cpu.add_program(&program).expect("should be able to add the program");
+	cpu.step().expect("should execute instruction (0x7XNN)");
+
+	assert_eq!(cpu.gp_registers[0xa], 0xfe, "Register 0xa should contain 0xfe");
+}
+
+#[test]
+fn instruction_0x8xy0() {
+	// instruction == 0x8XY0
+	// store value of VY in VX
+
+	let mut cpu = Cpu::init();
+	let program: Vec<u8> = vec![0x8b, 0xa0, 0x01, 0x11];
+	cpu.gp_registers[0xa] = 0xff;
+
+	// program -> 0x8ba0, 0x0111
+	//              ^       ^   
+	// address -> 0x0200, 0x0202
+	cpu.add_program(&program).expect("should be able to add the program");
+	cpu.step().expect("should execute instruction (0x8XY0)");
+
+	assert_eq!(cpu.gp_registers[0xa], cpu.gp_registers[0xb],
+		"Registers 0xa and 0xb should have same value");
+}
+
+#[test]
+fn instruction_0x8xy1() {
+	// instruction == 0x8XY1
+	// set VX = VX | VY
+
+	let mut cpu = Cpu::init();
+	let program: Vec<u8> = vec![0x8a, 0xb1, 0x01, 0x11];
+	cpu.gp_registers[0xa] = 0xf0;
+	cpu.gp_registers[0xb] = 0x0f;
+
+	// program -> 0x8ab1, 0x0111
+	//              ^       ^   
+	// address -> 0x0200, 0x0202
+	cpu.add_program(&program).expect("should be able to add the program");
+	cpu.step().expect("should execute instruction (0x8XY1)");
+
+	assert_eq!(cpu.gp_registers[0xa], 0xff, "Register ");
+}
+
+#[test]
+fn instruction_0x8xy2() {
+	// instruction == 0x8XY2
+	// set VX = VX & VY
+
+	let mut cpu = Cpu::init();
+	let program: Vec<u8> = vec![0x8a, 0xb2, 0x01, 0x11];
+	cpu.gp_registers[0xa] = 0xf0;
+	cpu.gp_registers[0xb] = 0x0f;
+
+	// program -> 0x8ab2, 0x0111
+	//              ^       ^   
+	// address -> 0x0200, 0x0202
+	cpu.add_program(&program).expect("should be able to add the program");
+	cpu.step().expect("should execute instruction (0x8XY2)");
+
+	assert_eq!(cpu.gp_registers[0xa], 0x0);
+}
+
+#[test]
+fn instruction_0x8xy3() {
+	// instruction == 0x8XY3
+	// set VX = VX ^ VY
+	let mut cpu = Cpu::init();
+	let program: Vec<u8> = vec![0x8a, 0xb5, 0x01, 0x11];
+	cpu.gp_registers[0xa] = 0xff;
+	cpu.gp_registers[0xb] = 0x0f;
+
+	// program -> 0x8ab3, 0x0111
+	//              ^       ^   
+	// address -> 0x0200, 0x0202
+	cpu.add_program(&program).expect("should be able to add the program");
+	cpu.step().expect("should execute instruction (0x8XY3)");
+
+	assert_eq!(cpu.gp_registers[0xa], 0xf0);
+}
+
+#[test]
+fn instruction_0x8xy4() {
+	// instruction == 0x8XY4
+	// set VX = VX + VY. set VF = 0x01 if carry occurs, otherwise set VF = 0x00
+
+	let mut cpu = Cpu::init();
+	let program: Vec<u8> = vec![0x8a, 0xb4, 0x01, 0x11];
+
+	// for no carry
+	cpu.gp_registers[0xa] = 0xa;
+	cpu.gp_registers[0xb] = 0xb;
+
+	// program -> 0x8ab4, 0x0111
+	//              ^       ^   
+	// address -> 0x0200, 0x0202
+	cpu.add_program(&program).expect("should be able to add the program");
+	cpu.step().expect("should execute instruction (0x8XY4)");
+
+	assert_eq!(cpu.gp_registers[0xa], 0x15);
+	assert_eq!(cpu.gp_registers[0xf], 0x0);
+
+	cpu.reset();
+	cpu.add_program(&program).expect("should be able to add the program");
+	// for carry
+	cpu.gp_registers[0xa] = 0xfa;
+	cpu.gp_registers[0xb] = 0xfa;
+
+	cpu.step().expect("should execute instruction (0x8XY4)");
+	assert_eq!(cpu.gp_registers[0xa], 0xf5);
+	assert_eq!(cpu.gp_registers[0xf], 0x1);
+}
+
+#[test]
+fn instruction_0x8xy5() {
+	// instruction == 0x8XY5
+	// set VX = VX - VY. set VF = 0x00 if borrow occurs, otherwise set VF = 0x01
+	
+	let mut cpu = Cpu::init();
+	let program: Vec<u8> = vec![0x8a, 0xb5, 0x01, 0x11];
+
+	// for no borrow
+	cpu.gp_registers[0xa] = 0xa;
+	cpu.gp_registers[0xb] = 0x8;
+
+	// program -> 0x8ab5, 0x0111
+	//              ^       ^   
+	// address -> 0x0200, 0x0202
+	cpu.add_program(&program).expect("should be able to add the program");
+	cpu.step().expect("should execute instruction (0x8XY5)");
+
+	assert_eq!(cpu.gp_registers[0xa], 0x2);
+	assert_eq!(cpu.gp_registers[0xf], 0x01);
+
+	cpu.reset();
+	cpu.add_program(&program).expect("should be able to add the program");
+	// for borrow
+	cpu.gp_registers[0xa] = 0x8;
+	cpu.gp_registers[0xb] = 0xb;
+
+	cpu.step().expect("should execute instruction (0x8XY5)");
+	assert_eq!(cpu.gp_registers[0xa], 0xfd);
+	assert_eq!(cpu.gp_registers[0xf], 0x00);
+}
+
+#[test]
+fn instruction_0x8xy6() {
+	// instruction == 0x8XY6
+	// set VX = VY >> 1, set VF to the least significant bit of VY before shift. VY is unchanged
+
+	let mut cpu = Cpu::init();
+	let program: Vec<u8> = vec![0x8a, 0xb6, 0x01, 0x11];
+
+	cpu.gp_registers[0xb] = 0x2;
+
+	// program -> 0x8ab6, 0x0111
+	//              ^       ^   
+	// address -> 0x0200, 0x0202
+	cpu.add_program(&program).expect("should be able to add the program");
+	cpu.step().expect("should execute instruction (0x8XY6)");
+
+	assert_eq!(cpu.gp_registers[0xf], 0x0);
+	assert_eq!(cpu.gp_registers[0xa], 0x1);
+	assert_eq!(cpu.gp_registers[0xb], 0x2);
+}
+
+#[test]
+fn instruction_0x8xy7() {
+	// instruction == 0x8XY7
+	// set VX = VY - VX. set VF = 0x00 if borrow occcurs, otherwise set VF = 0x01
+
+	let mut cpu = Cpu::init();
+	let program: Vec<u8> = vec![0x8a, 0xb7, 0x01, 0x11];
+
+	// for no borrow
+	cpu.gp_registers[0xa] = 0x8;
+	cpu.gp_registers[0xb] = 0xa;
+
+	// program -> 0x8ab7, 0x0111
+	//              ^       ^   
+	// address -> 0x0200, 0x0202
+	cpu.add_program(&program).expect("should be able to add the program");
+	cpu.step().expect("should execute instruction (0x8XY7)");
+
+	assert_eq!(cpu.gp_registers[0xa], 0x2);
+	assert_eq!(cpu.gp_registers[0xf], 0x01);
+
+	cpu.reset();
+	cpu.add_program(&program).expect("should be able to add the program");
+	// for borrow
+	cpu.gp_registers[0xa] = 0x2;
+	cpu.gp_registers[0xb] = 0x1;
+
+	cpu.step().expect("should execute instruction (0x8XY7)");
+	assert_eq!(cpu.gp_registers[0xa], 0xff);
+	assert_eq!(cpu.gp_registers[0xf], 0x00);
+}
+
+#[test]
+fn instruction_8xye() {
+	// instruction == 0x8XYE
+	// set VX = VY << 1, set VF to the most significant bit of VY before shift. VY is unchanged
+
+	let mut cpu = Cpu::init();
+	let program: Vec<u8> = vec![0x8a, 0xbe, 0x01, 0x11];
+
+	cpu.gp_registers[0xb] = 0x2;
+
+	// program -> 0x8abe, 0x0111
+	//              ^       ^   
+	// address -> 0x0200, 0x0202
+	cpu.add_program(&program).expect("should be able to add the program");
+	cpu.step().expect("should execute instruction (0x8XYE)");
+
+	assert_eq!(cpu.gp_registers[0xf], 0x0);
+	assert_eq!(cpu.gp_registers[0xa], 0x4);
+	assert_eq!(cpu.gp_registers[0xb], 0x2);
+}
