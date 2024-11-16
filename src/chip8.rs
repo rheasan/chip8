@@ -1,8 +1,8 @@
-use std::{sync::{Arc, Mutex}, thread::{self, sleep}, time::Duration};
+use std::{process::exit, sync::{Arc, Mutex}, thread::{self, sleep}, time::Duration};
 
 use minifb::{Window, WindowOptions};
 
-use crate::{cpu::{self, HEIGHT, WIDTH}, ext::ToARGB, keyboard};
+use crate::{cpu::{self, ExecuteError, HEIGHT, WIDTH}, ext::ToARGB, keyboard};
 
 pub struct Chip8 {
 	cpu: cpu::Cpu,
@@ -30,10 +30,19 @@ impl Chip8 {
 	}
 
 	pub fn run(&mut self) {
-		while let Ok(()) = self.cpu.step(&self.io.keyboard) {
-			self.check_keypresses();
-			self.update_window();
-			sleep(Duration::from_millis(20));
+		loop {
+			let res = self.cpu.step(&self.io.keyboard);
+			match res {
+				Ok(()) => {
+					self.check_keypresses();
+					self.update_window();
+					sleep(Duration::from_millis(20));
+				}
+				Err(e) => {
+					eprintln!("{}", e.to_string());
+					return
+				}
+			}
 		}
 	}
 

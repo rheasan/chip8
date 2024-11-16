@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt::Debug, rc::Rc};
+use std::{cell::RefCell, fmt::{format, Debug}, rc::Rc};
 
 use crate::keyboard::KeyBoard;
 
@@ -47,6 +47,18 @@ pub enum ExecuteError{
 	BadReturn(u16),
 	BadJumpAddr(u16),
 	InvalidSprite
+}
+impl ToString for ExecuteError {
+	fn to_string(&self) -> String {
+		match self {
+			ExecuteError::FailedToReadInstruction => String::from("Failed to read instructions"),
+			ExecuteError::BadInstruction(i) => format!("Bad instruction: {:#04}", i),
+			ExecuteError::BadJumpAddr(addr) => format!("Bad Jump Address: {:#04}", addr),
+			ExecuteError::BadReturn(addr) => format!("Bad return Address: {:#04}", addr),
+			ExecuteError::InvalidSprite => String::from("Invalid Sprite"),
+			ExecuteError::MaxCallDepthReached(i) => format!("Max call depth reached: {:#04}", i)
+		}
+	}
 }
 
 impl Cpu {

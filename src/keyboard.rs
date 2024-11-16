@@ -24,6 +24,5 @@ impl KeyBoard {
 	}
 
     pub fn set_key_pressed(&mut self, key: Option<&Key>) {
-		todo!("Map Key to hex keycoded")
     }
 }
