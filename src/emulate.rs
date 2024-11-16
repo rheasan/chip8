@@ -1,5 +1,5 @@
 use std::fs::read;
-use crate::cpu::Cpu;
+use crate::chip8::Chip8;
 
 fn read_bytecode(path: &String) -> Result<Vec<u8>, std::io::Error> {
 	let data = read(path)?;
@@ -10,11 +10,12 @@ fn read_bytecode(path: &String) -> Result<Vec<u8>, std::io::Error> {
 		));
 	}
 
-	return Ok(data);
+	Ok(data)
 }
 
-pub fn emulate(src: String, chip8: &mut Cpu) -> Result<(), std::io::Error> {
+pub fn emulate(src: String, chip8: &mut Chip8) -> Result<(), std::io::Error> {
 	let data = read_bytecode(&src)?;
 	chip8.add_program(&data)?;
+	chip8.run();
 	Ok(())
 }

@@ -1,4 +1,6 @@
-use std::{cell::RefCell, fmt::Debug, rc::Rc, thread::sleep, time::Duration};
+use std::{cell::RefCell, fmt::Debug, rc::Rc};
+
+use crate::keyboard::KeyBoard;
 
 // 0xE8F - 0x200 = 0xC8F = 3215 bytes
 pub const MAX_PROGRAM_SIZE : usize = 3215usize;
@@ -7,7 +9,7 @@ pub const HEIGHT: usize = 32;
 
 pub struct Cpu {
     pub mem: Vec<u8>,
-    pub d_buffer: Rc<RefCell<Vec<u8>>>,
+	pub d_buffer: Rc<RefCell<Vec<u8>>>,
     // general purpose registers V0 to VF, 8bits wide
     pub gp_registers: [u8; 16],
     // address register 'I', 16bit wide but addresses are only 12bit wide
@@ -21,10 +23,6 @@ pub struct Cpu {
 	pub delay_timer: u8,
 	pub sound_timer: u8,
 	pub program_end_addr: usize,
-
-	// FIXME: this state should not be owned by the CPU
-	pub is_key_pressed: bool,
-	pub last_key_pressed: u8
 }
 impl Debug for Cpu {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -37,8 +35,6 @@ impl Debug for Cpu {
 			.field("delay_timer", &self.delay_timer)
 			.field("sound_timer", &self.sound_timer)
 			.field("program_end_addr", &self.program_end_addr)
-			.field("is_key_pressed", &self.is_key_pressed)
-			.field("last_key_pressed", &self.last_key_pressed)
 			.finish()
 	}
 }
@@ -55,7 +51,7 @@ pub enum ExecuteError{
 
 impl Cpu {
     pub fn init() -> Self {
-        return Cpu {
+        Cpu {
             mem: vec![0u8; 4096],
             d_buffer: Rc::new(RefCell::new(vec![0u8; WIDTH*HEIGHT])),
             gp_registers: [0u8; 16],
@@ -66,45 +62,38 @@ impl Cpu {
             delay_timer: 0,
             sound_timer: 0,
 			program_end_addr: 0,
-			is_key_pressed: false,
-			last_key_pressed: 0x0
-        };
+        }
     }
-	pub fn add_program(&mut self, program: &Vec<u8>) -> Result<(), std::io::Error> {
+	pub fn add_program(&mut self, program: &[u8]) -> Result<(), std::io::Error> {
 		if program.len() > MAX_PROGRAM_SIZE {
 			return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, 
 				format!("Max supported program size if {} bytes. Received {} bytes", MAX_PROGRAM_SIZE, program.len())));
 		}
-
-		for i in 0..program.len() {
-			self.mem[0x200 + i] = program[i];
-		}
+		self.mem[512..(program.len() + 512)].copy_from_slice(&program[..]);
 		self.program_end_addr = 0x200 + program.len();
 		
 		Ok(())
 	}
-	pub fn reset(&mut self) -> () {
+	pub fn reset(&mut self) {
 		self.i = 0;
 		self.pc = 0x0200;
 		self.sp = 0;
 		self.stack.clear();
 		self.delay_timer = 0;
 		self.sound_timer = 0;
-		self.is_key_pressed = false;
-		self.last_key_pressed = 0x0;
 		self.mem[0x200..=self.program_end_addr].fill(0);
 	}
 	
 	pub fn dump(&self, dump_d_buffer: bool, program_bytes: usize) {
 		println!("State: {:?}", self);
 
-		println!("\n Display buffer: ");
 		if dump_d_buffer {
+			println!("\nDisplay buffer: ");
 			let d_buffer = self.d_buffer.borrow();
 			for (i, e) in d_buffer.iter().enumerate() {
 				print!("{}", e&1);
-				if i != 0 && (i+1)%WIDTH == 0 {
-					print!("\n");
+				if i != 0 && (i+1) % WIDTH == 0 {
+					println!();
 				}
 			}
 		}
@@ -116,7 +105,7 @@ impl Cpu {
 			}
 		}
 	}
-	pub fn step(&mut self) -> Result<(), ExecuteError> {
+	pub fn step(&mut self, keyboard: &KeyBoard) -> Result<(), ExecuteError> {
 		let instruction = self.get_next_instruction()?;
 		let nnn = (instruction & 0x0fff) as usize;
 		// x only contains 4 bits so can access gp_resgisters without bound check
@@ -146,7 +135,7 @@ impl Cpu {
 						0xee => {
 							// instruction == 0x00EE
 							// return from a subroutine
-							if self.stack.len() == 0 {
+							if self.stack.is_empty() {
 								return Err(ExecuteError::BadReturn(instruction));
 							}
 							let addr = self.stack.pop().unwrap();
@@ -352,21 +341,31 @@ impl Cpu {
 						// instruction == 0xEX9E
 						// skip the following instruction if the key corresponding to the hex value in VX
 						// is pressed. do not wait for input
-						if self.is_key_pressed && self.last_key_pressed == self.gp_registers[x] {
-							self.pc += 2;
+						match keyboard.get_current_key() {
+							Some(key) => {
+								if key == self.gp_registers[x] {
+									self.pc += 4
+								}
+							}
+							None => {
+								self.pc += 2
+							}
 						}
-						self.pc += 2;
 					}
 					0xa1 => {
 						// instruction == 0xEXA1
 						// skip the following instruction if the key corresponding to the hex value in VX
 						// is not pressed. do not wait for input
-						if !self.is_key_pressed || 
-							(self.is_key_pressed && self.last_key_pressed != self.gp_registers[x]) 
-						{
-							self.pc += 2;
+						match keyboard.get_current_key() {
+							Some(key) => {
+								if key != self.gp_registers[x] {
+									self.pc += 4
+								}
+							}
+							None => {
+								self.pc += 2
+							}
 						}
-						self.pc += 2;
 					}
 					_ => {
 						return Err(ExecuteError::BadInstruction(instruction));
@@ -384,10 +383,7 @@ impl Cpu {
 					0x0A => {
 						// instruction == 0xFX0A
 						// wait for keypress and store the value of key in VX
-						while !self.is_key_pressed {
-							self.gp_registers[x] = self.last_key_pressed;
-							sleep(Duration::from_millis(60));
-						}
+						self.gp_registers[x] = keyboard.block_until_keypress();
 						self.pc += 2;
 					}
 					0x15 => {
@@ -458,17 +454,17 @@ impl Cpu {
 	}
 	#[inline]
 	fn is_valid_program_addr(&self, addr: usize) -> bool {
-		return addr >= 0x200 && addr <= self.program_end_addr;
+		addr >= 0x200 && addr <= self.program_end_addr
 	}
 	fn get_next_instruction(&self) -> Result<u16, ExecuteError> {
-		let byte_1 = self.mem.get(self.pc as usize);
-		let byte_2 = self.mem.get(self.pc as usize + 1);
+		let byte_1 = self.mem.get(self.pc);
+		let byte_2 = self.mem.get(self.pc + 1);
 
 		if byte_1.is_none() || byte_2.is_none() {
 			return Err(ExecuteError::FailedToReadInstruction);
 		}
 		let instruction = (*byte_1.unwrap() as u16) << 8 | *byte_2.unwrap() as u16;
-		return Ok(instruction);
+		Ok(instruction)
 	}
 	
 	fn draw_sprite(&mut self, n: u8, x: u8, y: u8) -> Result<bool, ExecuteError> {
