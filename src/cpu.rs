@@ -7,6 +7,24 @@ pub const MAX_PROGRAM_SIZE : usize = 3215usize;
 pub const WIDTH: usize = 64;
 pub const HEIGHT: usize = 32;
 
+const ZERO: &[u8] = &[0xf0, 0x90, 0x90, 0x90, 0xf0];
+const ONE: &[u8] = &[0x20, 0x60, 0x20, 0x20, 0x70];
+const TWO: &[u8] = &[0xf0, 0x10, 0xf0, 0x80, 0xf0];
+const THREE: &[u8] = &[0xf0, 0x10, 0xf0, 0x10, 0xf0];
+const FOUR: &[u8] = &[0xf0, 0x80, 0xf0, 0x10, 0xf0];
+const FIVE: &[u8] = &[0xf0, 0x80, 0xf0, 0x90, 0xf0];
+const SIX: &[u8] = &[0xf0, 0x80, 0xf0, 0x90, 0xf0];
+const SEVEN: &[u8] = &[0xf0, 0x10, 0x20, 0x40, 0x40];
+const EIGHT: &[u8] = &[0xf0, 0x90, 0xf0, 0x10, 0xf0];
+const NINE: &[u8] = &[0xf0, 0x90, 0xf0, 0x10, 0xf0];
+const A: &[u8] = &[0xf0, 0x90, 0xf0, 0x90, 0x90];
+const B: &[u8] = &[0xe0, 0x90, 0xe0, 0x90, 0xe0];
+const C: &[u8] = &[0xf0, 0x80, 0x80, 0x80, 0xf0];
+const D: &[u8] = &[0xe0, 0x90, 0x90, 0x90, 0xe0];
+const E: &[u8] = &[0xf0, 0x80, 0xf0, 0x80, 0xf0];
+const F: &[u8] = &[0xf0, 0x80, 0xf0, 0x80, 0x80];
+const HEX_SPRITE_SIZE: u8 = 0x50;
+
 pub struct Cpu {
     pub mem: Vec<u8>,
 	pub d_buffer: Rc<RefCell<Vec<u8>>>,
@@ -63,8 +81,9 @@ impl ToString for ExecuteError {
 
 impl Cpu {
     pub fn init() -> Self {
-        Cpu {
-            mem: vec![0u8; 4096],
+		let sprites = vec![ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, A, B, C, D, E, F].concat();
+		let mut cpu = Cpu {
+            mem: vec![0; 4096],
             d_buffer: Rc::new(RefCell::new(vec![0u8; WIDTH*HEIGHT])),
             gp_registers: [0u8; 16],
 			i: 0,
@@ -74,7 +93,10 @@ impl Cpu {
             delay_timer: 0,
             sound_timer: 0,
 			program_end_addr: 0,
-        }
+        };
+		// add sprites to the start of the memory
+		cpu.mem[0..sprites.len()].copy_from_slice(&sprites);
+		cpu
     }
 	pub fn add_program(&mut self, program: &[u8]) -> Result<(), std::io::Error> {
 		if program.len() > MAX_PROGRAM_SIZE {
@@ -419,7 +441,10 @@ impl Cpu {
 					0x29 => {
 						// instruction == 0xFX29
 						// set I to memory address of sprite data corresponding to the digit stored in register VX
-						todo!("Implement preset sprite data for 0x00 to 0x0F");
+						if self.gp_registers[x] > 0xf {
+							return Err(ExecuteError::BadInstruction(instruction));
+						}
+						self.i = (self.gp_registers[x]*HEX_SPRITE_SIZE) as u16;
 						self.pc += 2;
 					}
 					0x33 => {
@@ -485,9 +510,9 @@ impl Cpu {
 		let sprite_start = self.i as usize;
 		let sprite_end = sprite_start + n as usize;
 		// FIXME: this is not the correct way to stop execution of sprites
-		if sprite_start <= self.program_end_addr ||  sprite_end <= self.program_end_addr {
-			return Err(ExecuteError::InvalidSprite);
-		}
+		// if sprite_start <= self.program_end_addr ||  sprite_end <= self.program_end_addr {
+		// 	return Err(ExecuteError::InvalidSprite);
+		// }
 
 		let mut coord_x = x as usize;
 		let mut coord_y = y as usize;
