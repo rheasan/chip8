@@ -1,9 +1,10 @@
-use clap::{Arg, ArgAction, Command};
+use clap::{Arg, ArgAction, Command, Subcommand};
 
 pub enum Chip8Command {
     Emulate {
         src: String,
-    }
+    },
+    PrintKeyMap
 }
 
 pub fn parse_args() -> Option<Chip8Command> {
@@ -25,6 +26,12 @@ pub fn parse_args() -> Option<Chip8Command> {
                 .action(ArgAction::Set)
             )
         )
+
+        .subcommand(
+            Command::new("keymap")
+            .about("print keymap")
+        )
+
         .get_matches();
     
     match matched.subcommand() {
@@ -35,7 +42,10 @@ pub fn parse_args() -> Option<Chip8Command> {
 
             let src = emulate_args.get_one::<String>("src")?.to_owned();
             return Some(Chip8Command::Emulate { src });
-        },
+        }
+        Some(("keymap", _)) => {
+            return Some(Chip8Command::PrintKeyMap)
+        }
         _ => unreachable!()	
     }
 }

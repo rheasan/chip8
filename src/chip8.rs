@@ -36,7 +36,7 @@ impl Chip8 {
                 Ok(()) => {
                     self.check_keypresses();
                     self.update_window();
-                    sleep(Duration::from_millis(20));
+                    sleep(Duration::from_millis(1000 / 60));
                 }
                 Err(e) => {
                     eprintln!("{}", e.to_string());
@@ -77,13 +77,13 @@ impl Chip8 {
         match pressed.last() {
             Some(k) => {
                 match *k {
-                    minifb::Key::Z => {
+                    minifb::Key::NumPad1 => {
                         self.cpu.dump(true, 0);
                     }
-                    minifb::Key::X => {
+                    minifb::Key::NumPad2 => {
                         self.cpu.dump_everything();
                     }
-                    minifb::Key::Home => {
+                    minifb::Key::NumPad3 => {
                         exit(0);
                     }
                     _ => {}

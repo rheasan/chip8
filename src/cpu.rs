@@ -152,6 +152,14 @@ impl Cpu {
         let nn = (instruction & 0x00ff) as u8;
         let n = (instruction & 0x000f) as u8;
 
+        if self.delay_timer != 0 {
+            self.delay_timer -= 1;
+        }
+
+        if self.sound_timer != 0 {
+            self.sound_timer -= 1;
+        }
+
         match instruction & 0xf000 {
             0x0000 => {
                 if ((instruction & 0x0f00) >> 8) != 0 {
