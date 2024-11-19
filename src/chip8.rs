@@ -1,4 +1,4 @@
-use std::{thread::sleep, time::Duration};
+use std::{process::exit, thread::sleep, time::Duration};
 
 use minifb::{Window, WindowOptions};
 
@@ -74,6 +74,23 @@ impl Chip8 {
 
     fn check_keypresses(&mut self) {
         let pressed = self.io.window.get_keys_pressed(minifb::KeyRepeat::No);
+        match pressed.last() {
+            Some(k) => {
+                match *k {
+                    minifb::Key::Z => {
+                        self.cpu.dump(true, 0);
+                    }
+                    minifb::Key::X => {
+                        self.cpu.dump_everything();
+                    }
+                    minifb::Key::Home => {
+                        exit(0);
+                    }
+                    _ => {}
+                }
+            },
+            None => {}
+        }
         self.io.keyboard.set_key_pressed(pressed.last());
     }
 }

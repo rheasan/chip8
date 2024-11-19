@@ -23,7 +23,7 @@ const C: &[u8] = &[0xf0, 0x80, 0x80, 0x80, 0xf0];
 const D: &[u8] = &[0xe0, 0x90, 0x90, 0x90, 0xe0];
 const E: &[u8] = &[0xf0, 0x80, 0xf0, 0x80, 0xf0];
 const F: &[u8] = &[0xf0, 0x80, 0xf0, 0x80, 0x80];
-const HEX_SPRITE_SIZE: u8 = 0x50;
+const HEX_SPRITE_SIZE: u16 = 0x5;
 
 pub struct Cpu {
     pub mem: Vec<u8>,
@@ -138,6 +138,10 @@ impl Cpu {
                 println!("{:#04x}", i);
             }
         }
+    }
+
+    pub fn dump_everything(&self) {
+        self.dump(true, self.program_end_addr - 0x200);
     }
     pub fn step(&mut self, keyboard: &KeyBoard) -> Result<(), ExecuteError> {
         let instruction = self.get_next_instruction()?;
@@ -444,7 +448,7 @@ impl Cpu {
                         if self.gp_registers[x] > 0xf {
                             return Err(ExecuteError::BadInstruction(instruction));
                         }
-                        self.i = (self.gp_registers[x]*HEX_SPRITE_SIZE) as u16;
+                        self.i = self.gp_registers[x] as u16 * HEX_SPRITE_SIZE;
                         self.pc += 2;
                     }
                     0x33 => {
@@ -514,8 +518,8 @@ impl Cpu {
         //     return Err(ExecuteError::InvalidSprite);
         // }
 
-        let mut coord_x = x as usize;
-        let mut coord_y = y as usize;
+        let mut coord_x = x as usize % WIDTH;
+        let mut coord_y = y as usize % HEIGHT;
 
         let sprite = Vec::from(&self.mem[sprite_start..sprite_end]);
 
@@ -526,8 +530,6 @@ impl Cpu {
         for byte in sprite {
             let mut b = byte;
             for _ in 0..8 {
-                coord_x %= WIDTH;
-                coord_y %= HEIGHT;
                 let index = coord_x + coord_y * WIDTH;
                 let prev_value = d_buffer[index];
                 // the sprite is drawn by xoring with the current value not by setting a new value
@@ -540,6 +542,7 @@ impl Cpu {
                 b <<= 1;
             }
             coord_y += 1;
+            coord_x = x as usize % WIDTH;
         }
 
         Ok(should_set_flag)

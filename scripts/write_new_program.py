@@ -1,0 +1,13 @@
+import sys
+program = [
+    0x00, 0xE0,  # 00E0
+    0x6A, 0x0A,  # 6A0A
+    0xFA, 0x29,  # FA29
+    0x60, 0x04,  # 6004
+    0x61, 0x06,  # 6106
+    0xD0, 0x15,  # D015
+    0xF0, 0x0A   # 12FC
+]
+
+with open(sys.argv[1], "wb") as file:
+    file.write(bytearray(program))
