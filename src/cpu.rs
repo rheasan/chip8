@@ -3,7 +3,7 @@ use std::{cell::RefCell, fmt::Debug, rc::Rc};
 use crate::keyboard::KeyBoard;
 
 // 0xE8F - 0x200 = 0xC8F = 3215 bytes
-pub const MAX_PROGRAM_SIZE : usize = 3215usize;
+pub const MAX_PROGRAM_SIZE: usize = 3215usize;
 pub const WIDTH: usize = 64;
 pub const HEIGHT: usize = 32;
 
@@ -32,7 +32,7 @@ pub struct Cpu {
     pub gp_registers: [u8; 16],
     // address register 'I', 16bit wide but addresses are only 12bit wide
     // only addresses in the range 0x200 - 0xE8F are available for programs
-    // first 0x200 bytes are reserved for the interpreter, and final 352 bytes are reserved for 
+    // first 0x200 bytes are reserved for the interpreter, and final 352 bytes are reserved for
     // "variables and display refresh"
     pub i: u16,
     pub pc: usize,
@@ -58,13 +58,13 @@ impl Debug for Cpu {
 }
 
 #[derive(Debug)]
-pub enum ExecuteError{
+pub enum ExecuteError {
     FailedToReadInstruction,
     BadInstruction(u16),
     MaxCallDepthReached(u16),
     BadReturn(u16),
     BadJumpAddr(u16),
-    InvalidSprite
+    InvalidSprite,
 }
 impl ToString for ExecuteError {
     fn to_string(&self) -> String {
@@ -74,17 +74,20 @@ impl ToString for ExecuteError {
             ExecuteError::BadJumpAddr(addr) => format!("Bad Jump Address: {:#04}", addr),
             ExecuteError::BadReturn(addr) => format!("Bad return Address: {:#04}", addr),
             ExecuteError::InvalidSprite => String::from("Invalid Sprite"),
-            ExecuteError::MaxCallDepthReached(i) => format!("Max call depth reached: {:#04}", i)
+            ExecuteError::MaxCallDepthReached(i) => format!("Max call depth reached: {:#04}", i),
         }
     }
 }
 
 impl Cpu {
     pub fn init() -> Self {
-        let sprites = vec![ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, A, B, C, D, E, F].concat();
+        let sprites = vec![
+            ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, A, B, C, D, E, F,
+        ]
+        .concat();
         let mut cpu = Cpu {
             mem: vec![0; 4096],
-            d_buffer: Rc::new(RefCell::new(vec![0u8; WIDTH*HEIGHT])),
+            d_buffer: Rc::new(RefCell::new(vec![0u8; WIDTH * HEIGHT])),
             gp_registers: [0u8; 16],
             i: 0,
             pc: 0x200,
@@ -100,12 +103,18 @@ impl Cpu {
     }
     pub fn add_program(&mut self, program: &[u8]) -> Result<(), std::io::Error> {
         if program.len() > MAX_PROGRAM_SIZE {
-            return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, 
-                format!("Max supported program size if {} bytes. Received {} bytes", MAX_PROGRAM_SIZE, program.len())));
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!(
+                    "Max supported program size if {} bytes. Received {} bytes",
+                    MAX_PROGRAM_SIZE,
+                    program.len()
+                ),
+            ));
         }
         self.mem[512..(program.len() + 512)].copy_from_slice(&program[..]);
         self.program_end_addr = 0x200 + program.len();
-        
+
         Ok(())
     }
     pub fn reset(&mut self) {
@@ -117,7 +126,7 @@ impl Cpu {
         self.sound_timer = 0;
         self.mem[0x200..=self.program_end_addr].fill(0);
     }
-    
+
     pub fn dump(&self, dump_d_buffer: bool, program_bytes: usize) {
         println!("State: {:?}", self);
 
@@ -125,16 +134,19 @@ impl Cpu {
             println!("\nDisplay buffer: ");
             let d_buffer = self.d_buffer.borrow();
             for (i, e) in d_buffer.iter().enumerate() {
-                print!("{}", e&1);
-                if i != 0 && (i+1) % WIDTH == 0 {
+                print!("{}", e & 1);
+                if i != 0 && (i + 1) % WIDTH == 0 {
                     println!();
                 }
             }
         }
 
         if program_bytes > 0 {
-            println!("\n Loaded Program: (total program length {} bytes)", self.program_end_addr - 0x200);
-            for i in &self.mem[0x200..program_bytes+0x200] {
+            println!(
+                "\n Loaded Program: (total program length {} bytes)",
+                self.program_end_addr - 0x200
+            );
+            for i in &self.mem[0x200..program_bytes + 0x200] {
                 println!("{:#04x}", i);
             }
         }
@@ -168,8 +180,7 @@ impl Cpu {
                     // this instruction is only on RCA COSMAC VIP (the original implementation of chip8)
                     // so ignore this instruction
                     self.pc += 2;
-                }
-                else {
+                } else {
                     // instruction == 0x00E(0|E)
                     match instruction & 0x00ff {
                         0xe0 => {
@@ -290,7 +301,9 @@ impl Cpu {
                             }
                             None => {
                                 // addition overflowed
-                                self.gp_registers[x] = (self.gp_registers[x] as u16 + self.gp_registers[y] as u16 - 0xffu16) as u8;
+                                self.gp_registers[x] =
+                                    (self.gp_registers[x] as u16 + self.gp_registers[y] as u16
+                                        - 0xffu16) as u8;
                                 self.gp_registers[0xf] = 1;
                             }
                         }
@@ -304,7 +317,8 @@ impl Cpu {
                         } else {
                             self.gp_registers[0xf] = 0x0;
                         }
-                        self.gp_registers[x] = self.gp_registers[x].wrapping_sub(self.gp_registers[y]);
+                        self.gp_registers[x] =
+                            self.gp_registers[x].wrapping_sub(self.gp_registers[y]);
                         self.pc += 2;
                     }
                     0x6 => {
@@ -322,7 +336,8 @@ impl Cpu {
                         } else {
                             self.gp_registers[0xf] = 0x0;
                         }
-                        self.gp_registers[x] = self.gp_registers[y].wrapping_sub(self.gp_registers[x]);
+                        self.gp_registers[x] =
+                            self.gp_registers[y].wrapping_sub(self.gp_registers[x]);
                         self.pc += 2;
                     }
                     0xE => {
@@ -372,11 +387,10 @@ impl Cpu {
                 // draw a sprite at position VX and VY with N bytes of sprite data starting at
                 // address stored in I.
                 // Set VF = 0x01 if any set pixels are changed to unset, otherwise set VF = 0x00.
-                
+
                 if self.draw_sprite(n, self.gp_registers[x], self.gp_registers[y])? {
                     self.gp_registers[0xf] = 0x01;
-                }
-                else {
+                } else {
                     self.gp_registers[0xf] = 0x00;
                 }
                 self.pc += 2;
@@ -393,9 +407,7 @@ impl Cpu {
                                     self.pc += 4
                                 }
                             }
-                            None => {
-                                self.pc += 2
-                            }
+                            None => self.pc += 2,
                         }
                     }
                     0xa1 => {
@@ -408,9 +420,7 @@ impl Cpu {
                                     self.pc += 4
                                 }
                             }
-                            None => {
-                                self.pc += 2
-                            }
+                            None => self.pc += 2,
                         }
                     }
                     _ => {
@@ -485,7 +495,7 @@ impl Cpu {
                         // fill V0 to VX inclusive with values stored at memory starting at address I.
                         // set I = I + X + 1 after filling.
                         let addr = self.i as usize;
-                        self.gp_registers[0..=x].copy_from_slice(&self.mem[addr..=addr+x]);
+                        self.gp_registers[0..=x].copy_from_slice(&self.mem[addr..=addr + x]);
                         self.i += (x + 1) as u16;
                         self.pc += 2;
                     }
@@ -515,7 +525,7 @@ impl Cpu {
         let instruction = (*byte_1.unwrap() as u16) << 8 | *byte_2.unwrap() as u16;
         Ok(instruction)
     }
-    
+
     fn draw_sprite(&mut self, n: u8, x: u8, y: u8) -> Result<bool, ExecuteError> {
         // flag is set if is any set pixels are set to unset
         let mut should_set_flag = false;
@@ -530,7 +540,6 @@ impl Cpu {
         let mut coord_y = y as usize % HEIGHT;
 
         let sprite = Vec::from(&self.mem[sprite_start..sprite_end]);
-
 
         // each byte in the display buffer corresponds to a pixel and a bit in the sprite
         // each sprite is always 1 byte wide and 1 to 15 pixels tall

@@ -7,7 +7,7 @@ impl ToARGB for u8 {
         match self {
             0u8 => 0u32,
             1u8 => u32::MAX,
-            _ => 0u32
+            _ => 0u32,
         }
     }
 }

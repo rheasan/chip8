@@ -1,10 +1,8 @@
 use clap::{Arg, ArgAction, Command, Subcommand};
 
 pub enum Chip8Command {
-    Emulate {
-        src: String,
-    },
-    PrintKeyMap
+    Emulate { src: String },
+    PrintKeyMap,
 }
 
 pub fn parse_args() -> Option<Chip8Command> {
@@ -13,27 +11,21 @@ pub fn parse_args() -> Option<Chip8Command> {
         .author("rheasan :3")
         .arg_required_else_help(true)
         .subcommand_required(true)
-
         // emulate
         .subcommand(
             Command::new("emulate")
-            .about("assemble a chip8 program. the input should be a plaintext assembly file")
-            .arg(
-                Arg::new("src")
-                .help("source for the chip8 program")
-                .num_args(1)
-                .required(true)
-                .action(ArgAction::Set)
-            )
+                .about("assemble a chip8 program. the input should be a plaintext assembly file")
+                .arg(
+                    Arg::new("src")
+                        .help("source for the chip8 program")
+                        .num_args(1)
+                        .required(true)
+                        .action(ArgAction::Set),
+                ),
         )
-
-        .subcommand(
-            Command::new("keymap")
-            .about("print keymap")
-        )
-
+        .subcommand(Command::new("keymap").about("print keymap"))
         .get_matches();
-    
+
     match matched.subcommand() {
         Some(("emulate", emulate_args)) => {
             if !emulate_args.args_present() {
@@ -43,9 +35,7 @@ pub fn parse_args() -> Option<Chip8Command> {
             let src = emulate_args.get_one::<String>("src")?.to_owned();
             return Some(Chip8Command::Emulate { src });
         }
-        Some(("keymap", _)) => {
-            return Some(Chip8Command::PrintKeyMap)
-        }
-        _ => unreachable!()	
+        Some(("keymap", _)) => return Some(Chip8Command::PrintKeyMap),
+        _ => unreachable!(),
     }
 }

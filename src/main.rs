@@ -1,14 +1,13 @@
 use std::error::Error;
 
-mod cli;
-mod emulate;
-mod cpu;
 mod chip8;
-mod keyboard;
+mod cli;
+mod cpu;
+mod emulate;
 mod ext;
+mod keyboard;
 mod tests;
 fn main() -> Result<(), Box<dyn Error>> {
-
     let mut chip8 = chip8::Chip8::new();
     if let Some(args) = cli::parse_args() {
         match args {

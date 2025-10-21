@@ -1,5 +1,5 @@
-use std::fs::read;
 use crate::chip8::Chip8;
+use std::fs::read;
 
 fn read_bytecode(path: &String) -> Result<Vec<u8>, std::io::Error> {
     let data = read(path)?;

@@ -2,9 +2,8 @@ use std::{thread::sleep, time::Duration};
 
 use minifb::Key;
 
-
 pub struct KeyBoard {
-    key_pressed: Option<u8>
+    pub key_pressed: Option<u8>,
 }
 
 impl KeyBoard {
@@ -45,7 +44,7 @@ impl KeyBoard {
             Key::X => 0x0,
             Key::C => 0xb,
             Key::V => 0xf,
-            _ => 0xff
+            _ => 0xff,
         };
 
         if key_value == 0xff {
