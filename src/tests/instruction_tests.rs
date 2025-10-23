@@ -369,7 +369,7 @@ fn instruction_0x8xy4() {
 
     cpu.step(&KEY_PRESSED)
         .expect("should execute instruction (0x8XY4)");
-    assert_eq!(cpu.gp_registers[0xa], 0xf5);
+    assert_eq!(cpu.gp_registers[0xa], 0xf4);
     assert_eq!(cpu.gp_registers[0xf], 0x1);
 }
 

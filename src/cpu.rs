@@ -184,12 +184,14 @@ impl Cpu {
                     // instruction == 0x00E(0|E)
                     match instruction & 0x00ff {
                         0xe0 => {
+                            println!("cls");
                             // instruction == 0x00E0
                             // clear the screen
                             self.d_buffer.borrow_mut().fill(0);
                             self.pc += 2;
                         }
                         0xee => {
+                            println!("ret");
                             // instruction == 0x00EE
                             // return from a subroutine
                             if self.stack.is_empty() {
@@ -211,6 +213,7 @@ impl Cpu {
             0x1000 => {
                 // instruction == 0x1NNN
                 // jump to address NNN
+                println!("jmp {:x}", nnn);
                 if !self.is_valid_program_addr(nnn) {
                     return Err(ExecuteError::BadJumpAddr(instruction));
                 }
@@ -219,6 +222,7 @@ impl Cpu {
             0x2000 => {
                 // instruction == 0x2NNN
                 // execute subroutine starting at address NNN
+                println!("call {:x}", nnn);
                 if self.stack.len() == 16 {
                     return Err(ExecuteError::MaxCallDepthReached(instruction));
                 }
@@ -228,6 +232,7 @@ impl Cpu {
             0x3000 => {
                 // instruction == 0x3XNN
                 // skip the following instruction if the value of VX == NN
+                println!("se v{:x} {:x} (vx = {:x})", x, nn, self.gp_registers[x]);
                 if self.gp_registers[x] == nn {
                     self.pc += 2;
                 }
@@ -236,6 +241,7 @@ impl Cpu {
             0x4000 => {
                 // instruction == 0x4XNN
                 // skip the following instruction if the value of VX != NN
+                println!("sne v{:x} {:x}", x, nn);
                 if self.gp_registers[x] != nn {
                     self.pc += 2;
                 }
@@ -247,6 +253,10 @@ impl Cpu {
                 }
                 // instruction === 0x5XY0
                 // skip the following instruction if the value of VX == VY
+                println!(
+                    "se v{:x} v{:x} (vx = {:x} vy = {:x})",
+                    x, y, self.gp_registers[x], self.gp_registers[y]
+                );
                 if self.gp_registers[x] == self.gp_registers[y] {
                     self.pc += 2;
                 }
@@ -255,12 +265,14 @@ impl Cpu {
             0x6000 => {
                 // instruction == 0x6XNN
                 // store number nn in register VX
+                println!("ld v{:x} {:x}", x, nn);
                 self.gp_registers[x] = nn;
                 self.pc += 2;
             }
             0x7000 => {
                 // instruction == 0x7XNN
                 // add value NN to register VX (wrapping addition)
+                println!("add v{:x} {:x} (vx = {:x})", x, nn, self.gp_registers[x]);
                 self.gp_registers[x] = self.gp_registers[x].wrapping_add(nn);
                 self.pc += 2;
             }
@@ -269,42 +281,58 @@ impl Cpu {
                     0x0 => {
                         // instruction == 0x8XY0
                         // store value of VY in VX
+                        println!("ld v{:x} v{:x}", x, y);
                         self.gp_registers[x] = self.gp_registers[y];
                         self.pc += 2;
                     }
                     0x1 => {
                         // instruction == 0x8XY1
                         // set VX = VX | VY
+                        println!("or v{:x} v{:x}", x, y);
                         self.gp_registers[x] |= self.gp_registers[y];
                         self.pc += 2;
                     }
                     0x2 => {
                         // instruction == 0x8XY2
                         // set VX = VX & VY
+                        println!("and v{:x} v{:x}", x, y);
                         self.gp_registers[x] &= self.gp_registers[y];
                         self.pc += 2;
                     }
                     0x3 => {
                         // instruction == 0x8XY3
                         // set VX = VX ^ VY
+                        println!("xor v{:x} v{:x}", x, y);
                         self.gp_registers[x] ^= self.gp_registers[y];
                         self.pc += 2;
                     }
                     0x4 => {
                         // instruction == 0x8XY4
                         // set VX = VX + VY. set VF = 0x01 if carry occurs, otherwise set VF = 0x00
+                        print!(
+                            "add v{:x} v{:x} (vx = {:x} vy = {:x})",
+                            x, y, self.gp_registers[x], self.gp_registers[y]
+                        );
                         let t = self.gp_registers[x].checked_add(self.gp_registers[y]);
                         match t {
                             Some(val) => {
                                 self.gp_registers[x] = val;
                                 self.gp_registers[0xf] = 0;
+                                println!(
+                                    "    vf after add {:x} vx after add {:x}",
+                                    self.gp_registers[0xf], self.gp_registers[x]
+                                );
                             }
                             None => {
                                 // addition overflowed
-                                self.gp_registers[x] =
-                                    (self.gp_registers[x] as u16 + self.gp_registers[y] as u16
-                                        - 0xffu16) as u8;
+                                let sum = self.gp_registers[x] as u16 + self.gp_registers[y] as u16;
+                                self.gp_registers[x] = (sum & 0xFF) as u8; // wrap around correctly
                                 self.gp_registers[0xf] = 1;
+
+                                println!(
+                                    "    vf after add {:x} vx after add {:x} overflowed",
+                                    self.gp_registers[0xf], self.gp_registers[x]
+                                );
                             }
                         }
                         self.pc += 2;
@@ -312,10 +340,13 @@ impl Cpu {
                     0x5 => {
                         // instruction == 0x8XY5
                         // set VX = VX - VY. set VF = 0x00 if borrow occurs, otherwise set VF = 0x01
+                        print!("sub v{:x} v{:x}", x, y);
                         if self.gp_registers[x] >= self.gp_registers[y] {
                             self.gp_registers[0xf] = 0x1;
+                            println!("    vf after sub {:x}", self.gp_registers[0xf]);
                         } else {
                             self.gp_registers[0xf] = 0x0;
+                            println!("    vf after sub {:x}", self.gp_registers[0xf]);
                         }
                         self.gp_registers[x] =
                             self.gp_registers[x].wrapping_sub(self.gp_registers[y]);
@@ -324,6 +355,7 @@ impl Cpu {
                     0x6 => {
                         // instruction == 0x8XY6
                         // set VX = VY >> 1, set VF to the least significant bit of VY before shift. VY is unchanged
+                        println!("shr v{:x} v{:x}", x, y);
                         self.gp_registers[x] = self.gp_registers[y] >> 1;
                         self.gp_registers[0xf] = self.gp_registers[y] & 0x1;
                         self.pc += 2;
@@ -331,10 +363,13 @@ impl Cpu {
                     0x7 => {
                         // instruction == 0x8XY7
                         // set VX = VY - VX. set VF = 0x00 if borrow occcurs, otherwise set VF = 0x01
+                        print!("subn v{:x} v{:x}", x, y);
                         if self.gp_registers[x] <= self.gp_registers[y] {
                             self.gp_registers[0xf] = 0x1;
+                            println!("    vf after subn {:x}", self.gp_registers[0xf]);
                         } else {
                             self.gp_registers[0xf] = 0x0;
+                            println!("    vf after subn {:x}", self.gp_registers[0xf]);
                         }
                         self.gp_registers[x] =
                             self.gp_registers[y].wrapping_sub(self.gp_registers[x]);
@@ -343,8 +378,12 @@ impl Cpu {
                     0xE => {
                         // instruction == 0x8XYE
                         // set VX = VY << 1, set VF to the most significant bit of VY before shift. VY is unchanged
+                        println!(
+                            "shl v{:x} v{:x} (vx = {:x}, vy = {:x})",
+                            x, y, self.gp_registers[x], self.gp_registers[y]
+                        );
+                        self.gp_registers[0xf] = (self.gp_registers[y] & 0x80) >> 7;
                         self.gp_registers[x] = self.gp_registers[y] << 1;
-                        self.gp_registers[0xf] = self.gp_registers[y] & 0x80;
                         self.pc += 2;
                     }
                     _ => {
@@ -358,6 +397,7 @@ impl Cpu {
                 }
                 // instruction == 0x9XY0
                 // skip the following instruction if VX != VY
+                println!("sne v{:x} v{:x}", x, y);
                 if self.gp_registers[x] != self.gp_registers[y] {
                     self.pc += 2;
                 }
@@ -366,18 +406,21 @@ impl Cpu {
             0xa000 => {
                 // instruction == 0xANNN
                 // store memory address NNN in I
+                println!("ld I, {:x}", nnn);
                 self.i = nnn as u16;
                 self.pc += 2;
             }
             0xb000 => {
                 // instruction == 0xBNNN
                 // jump to address V0 + NNN
+                println!("jmp V0 {:x}", nnn);
                 self.pc = self.gp_registers[0] as usize + nnn;
                 self.pc += 2;
             }
             0xc000 => {
                 // instruction == 0xCXNN
                 // set VX to random number with the mask NN
+                println!("rnd v{:x}, {:x}", x, nn);
                 let random = rand::random::<u8>();
                 self.gp_registers[x] = random & nn;
                 self.pc += 2;
@@ -387,11 +430,14 @@ impl Cpu {
                 // draw a sprite at position VX and VY with N bytes of sprite data starting at
                 // address stored in I.
                 // Set VF = 0x01 if any set pixels are changed to unset, otherwise set VF = 0x00.
+                print!("drw v{:x} v{:x} {:x}", x, y, n);
 
                 if self.draw_sprite(n, self.gp_registers[x], self.gp_registers[y])? {
                     self.gp_registers[0xf] = 0x01;
+                    println!("    vf after drw {:x}", self.gp_registers[0xf]);
                 } else {
                     self.gp_registers[0xf] = 0x00;
+                    println!("    vf after drw {:x}", self.gp_registers[0xf]);
                 }
                 self.pc += 2;
             }
@@ -401,6 +447,7 @@ impl Cpu {
                         // instruction == 0xEX9E
                         // skip the following instruction if the key corresponding to the hex value in VX
                         // is pressed. do not wait for input
+                        println!("skp v{:x}", x);
                         match keyboard.get_current_key() {
                             Some(key) => {
                                 if key == self.gp_registers[x] {
@@ -414,6 +461,7 @@ impl Cpu {
                         // instruction == 0xEXA1
                         // skip the following instruction if the key corresponding to the hex value in VX
                         // is not pressed. do not wait for input
+                        println!("sknp v{:x}", x);
                         match keyboard.get_current_key() {
                             Some(key) => {
                                 if key != self.gp_registers[x] {
@@ -433,36 +481,42 @@ impl Cpu {
                     0x07 => {
                         // instruction == 0xFX07
                         // store current value of delay timer in VX
+                        println!("ld v{:x} dt {:x}", x, self.delay_timer);
                         self.gp_registers[x] = self.delay_timer;
                         self.pc += 2;
                     }
                     0x0A => {
                         // instruction == 0xFX0A
                         // wait for keypress and store the value of key in VX
+                        println!("ld v{:x} K", x);
                         self.gp_registers[x] = keyboard.block_until_keypress();
                         self.pc += 2;
                     }
                     0x15 => {
                         // instruction == 0xFX15
                         // set the delay timer to the value of VX
+                        println!("ld dt v{:x}", x);
                         self.delay_timer = self.gp_registers[x];
                         self.pc += 2;
                     }
                     0x18 => {
                         // instruction == 0xFX18
                         // set the sound timer to the value of VX
+                        println!("ld st v{:x}", x);
                         self.sound_timer = self.gp_registers[x];
                         self.pc += 2;
                     }
                     0x1e => {
                         // instruction == 0xFX1E
                         // Add the value stored in VX to I
+                        println!("add I v{:x}", x);
                         self.i += self.gp_registers[x] as u16;
                         self.pc += 2;
                     }
                     0x29 => {
                         // instruction == 0xFX29
                         // set I to memory address of sprite data corresponding to the digit stored in register VX
+                        println!("ld f v{:x}", x);
                         if self.gp_registers[x] > 0xf {
                             return Err(ExecuteError::BadInstruction(instruction));
                         }
@@ -473,6 +527,7 @@ impl Cpu {
                         // instruction == 0xFX33
                         // store the binary coded decimal equivalent of value in VX at addr I, I+1, I+2
                         // https://en.wikipedia.org/wiki/Binary-coded_decimal
+                        println!("ld b v{:x}", x);
                         let vx = self.gp_registers[x];
                         // TODO: bound check
                         let addr = self.i as usize;
@@ -485,6 +540,7 @@ impl Cpu {
                         // instruction == 0xFX55
                         // store the values of registers V0 to VX inclusive to memory starting at address I.
                         // set I = I + X + 1 after saving.
+                        println!("ld [I] v{:x}", x);
                         let addr = self.i as usize;
                         self.mem[addr..=addr + x].copy_from_slice(&self.gp_registers[0..=x]);
                         self.i += (x + 1) as u16;
@@ -494,6 +550,7 @@ impl Cpu {
                         // instruction == 0xFX65
                         // fill V0 to VX inclusive with values stored at memory starting at address I.
                         // set I = I + X + 1 after filling.
+                        println!("ld v{:x} I", x);
                         let addr = self.i as usize;
                         self.gp_registers[0..=x].copy_from_slice(&self.mem[addr..=addr + x]);
                         self.i += (x + 1) as u16;
