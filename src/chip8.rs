@@ -34,6 +34,7 @@ impl Chip8 {
     pub fn run(&mut self) {
         loop {
             let res = self.cpu.step(&self.io.keyboard);
+            self.reset_keys();
             match res {
                 Ok(()) => {
                     self.check_keypresses();
@@ -93,5 +94,8 @@ impl Chip8 {
             None => {}
         }
         self.io.keyboard.set_key_pressed(pressed.last());
+    }
+    fn reset_keys(&mut self) {
+        self.io.keyboard.key_pressed = None;
     }
 }

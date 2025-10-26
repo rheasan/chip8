@@ -2,8 +2,8 @@ use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 use crate::keyboard::KeyBoard;
 
-// 0xE8F - 0x200 = 0xC8F = 3215 bytes
-pub const MAX_PROGRAM_SIZE: usize = 3215usize;
+// 0x2000 - 0x200 = 0x1EB4 = 7860 bytes
+pub const MAX_PROGRAM_SIZE: usize = 7860usize;
 pub const WIDTH: usize = 64;
 pub const HEIGHT: usize = 32;
 
@@ -86,7 +86,7 @@ impl Cpu {
         ]
         .concat();
         let mut cpu = Cpu {
-            mem: vec![0; 4096],
+            mem: vec![0; 8192],
             d_buffer: Rc::new(RefCell::new(vec![0u8; WIDTH * HEIGHT])),
             gp_registers: [0u8; 16],
             i: 0,
@@ -341,7 +341,8 @@ impl Cpu {
                         // instruction == 0x8XY5
                         // set VX = VX - VY. set VF = 0x00 if borrow occurs, otherwise set VF = 0x01
                         print!("sub v{:x} v{:x}", x, y);
-                        if self.gp_registers[x] >= self.gp_registers[y] {
+
+                        if self.gp_registers[y] <= self.gp_registers[x] {
                             self.gp_registers[0xf] = 0x1;
                             println!("    vf after sub {:x}", self.gp_registers[0xf]);
                         } else {
@@ -350,20 +351,24 @@ impl Cpu {
                         }
                         self.gp_registers[x] =
                             self.gp_registers[x].wrapping_sub(self.gp_registers[y]);
+
                         self.pc += 2;
                     }
                     0x6 => {
                         // instruction == 0x8XY6
                         // set VX = VY >> 1, set VF to the least significant bit of VY before shift. VY is unchanged
                         println!("shr v{:x} v{:x}", x, y);
-                        self.gp_registers[x] = self.gp_registers[y] >> 1;
                         self.gp_registers[0xf] = self.gp_registers[y] & 0x1;
+                        self.gp_registers[x] = self.gp_registers[y] >> 1;
                         self.pc += 2;
                     }
                     0x7 => {
                         // instruction == 0x8XY7
                         // set VX = VY - VX. set VF = 0x00 if borrow occcurs, otherwise set VF = 0x01
                         print!("subn v{:x} v{:x}", x, y);
+                        self.gp_registers[x] =
+                            self.gp_registers[y].wrapping_sub(self.gp_registers[x]);
+
                         if self.gp_registers[x] <= self.gp_registers[y] {
                             self.gp_registers[0xf] = 0x1;
                             println!("    vf after subn {:x}", self.gp_registers[0xf]);
@@ -371,8 +376,6 @@ impl Cpu {
                             self.gp_registers[0xf] = 0x0;
                             println!("    vf after subn {:x}", self.gp_registers[0xf]);
                         }
-                        self.gp_registers[x] =
-                            self.gp_registers[y].wrapping_sub(self.gp_registers[x]);
                         self.pc += 2;
                     }
                     0xE => {
@@ -461,9 +464,10 @@ impl Cpu {
                         // instruction == 0xEXA1
                         // skip the following instruction if the key corresponding to the hex value in VX
                         // is not pressed. do not wait for input
-                        println!("sknp v{:x}", x);
+                        println!("sknp v{:x} (vx = {:x})", x, self.gp_registers[x]);
                         match keyboard.get_current_key() {
                             Some(key) => {
+                                println!("pressed key = {:x}", key);
                                 if key != self.gp_registers[x] {
                                     self.pc += 4
                                 }
