@@ -493,8 +493,14 @@ impl Cpu {
                         // instruction == 0xFX0A
                         // wait for keypress and store the value of key in VX
                         println!("ld v{:x} K", x);
-                        self.gp_registers[x] = keyboard.block_until_keypress();
-                        self.pc += 2;
+                        // dont increment pc is there is no keypress
+                        match keyboard.get_current_key() {
+                            Some(k) => {
+                                self.gp_registers[x] = k;
+                                self.pc += 2;
+                            }
+                            None => {}
+                        }
                     }
                     0x15 => {
                         // instruction == 0xFX15
