@@ -19,11 +19,11 @@ pub struct IO {
 }
 
 impl Chip8 {
-    pub fn new() -> Chip8 {
+    pub fn new(debug: bool) -> Chip8 {
         let window = Window::new("CHIP8", WIDTH * 8, HEIGHT * 8, WindowOptions::default())
             .expect("failed to create a window");
         Chip8 {
-            cpu: cpu::Cpu::init(),
+            cpu: cpu::Cpu::init(debug),
             io: IO {
                 window,
                 keyboard: keyboard::KeyBoard::new(),

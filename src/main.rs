@@ -8,16 +8,16 @@ mod ext;
 mod keyboard;
 mod tests;
 fn main() -> Result<(), Box<dyn Error>> {
-    let mut chip8 = chip8::Chip8::new();
     if let Some(args) = cli::parse_args() {
         match args {
-            cli::Chip8Command::Emulate { src } => {
+            cli::Chip8Command::Emulate { src, debug } => {
+                let mut chip8 = chip8::Chip8::new(debug);
                 emulate::emulate(src, &mut chip8)?;
             }
             cli::Chip8Command::PrintKeyMap => {
                 print!(
                     "Keymap: (Chip8 key -> KeyBoard Key)
-                    
+
                     ╔════════╦════════╦════════╦════════╗
                     ║ 1 -> 1 ║ 2 -> 2 ║ 3 -> 3 ║ C -> 4 ║
                     ╠════════╬════════╬════════╬════════╣
@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     ╠════════╬════════╬════════╬════════╣
                     ║ A -> Z ║ 0 -> X ║ B -> C ║ F -> V ║
                     ╚════════╩════════╩════════╩════════╝
-                    
+
                     "
                 )
             }
