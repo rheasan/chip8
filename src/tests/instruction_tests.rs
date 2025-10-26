@@ -14,7 +14,7 @@ fn instruction_0x00e0() {
     // instruction == 0x00e0
     // clear the screen
 
-    let mut cpu = Cpu::init();
+    let mut cpu = Cpu::init(false);
     let res = cpu.add_program(&vec![0x00, 0xe0]);
     assert!(res.is_ok(), "Should be able to add the program.");
     // add dummy data to the d_buffer
@@ -48,7 +48,7 @@ fn instruction_0x00ee_0x2nnn() {
     // return from a subroutine
     // instruction == 0x2nnn
     // execute subroutine starting at address NNN
-    let mut cpu = Cpu::init();
+    let mut cpu = Cpu::init(false);
     // program -> 0x2208, 0x0111, 0x0111, 0x0111, 0x0111, 0x00ee
     //              ^        ^      ^       ^       ^       ^
     // address -> 0x0200, 0x0202, 0x0204, 0x0206, 0x0208, 0x0210
@@ -75,7 +75,7 @@ fn instruction_0x1nnn() {
     // instruction == 0x1NNN
     // jump to address NNN
     // will return error if the address is out of program bounds
-    let mut cpu = Cpu::init();
+    let mut cpu = Cpu::init(false);
 
     // program -> 0x0111, 0x120a, 0x0111, 0x0111, 0x0111, 0x0111
     //              ^       ^       ^       ^       ^       ^
@@ -116,7 +116,7 @@ fn instruction_0x1nnn() {
 fn instruction_0x3xnn() {
     // instruction == 0x3xnn
     // skip the following instruction if VX == NN
-    let mut cpu = Cpu::init();
+    let mut cpu = Cpu::init(false);
     cpu.gp_registers[0xa] = 0xfb;
     // program -> 0x3afb, 0x120a, 0x0111, 0x3afc, 0x0111, 0x0111
     //              ^       ^       ^       ^       ^       ^
@@ -142,7 +142,7 @@ fn instruction_0x3xnn() {
 fn instruction_0x4xnn() {
     // instruction == 0x4xnn
     // skip the following instruction if VX != NN
-    let mut cpu = Cpu::init();
+    let mut cpu = Cpu::init(false);
     cpu.gp_registers[0xa] = 0xfb;
     // program -> 0x4afb, 0x0111, 0x4afc, 0x0111, 0x0111
     //              ^       ^       ^       ^       ^
@@ -167,7 +167,7 @@ fn instruction_0x5xy0() {
     // instruction === 0x5XY0
     // skip the following instruction if the value of VX == VY
 
-    let mut cpu = Cpu::init();
+    let mut cpu = Cpu::init(false);
     // should return error if (instruction & 0x000f) != 0
     let program: Vec<u8> = vec![0x5a, 0x51];
     cpu.add_program(&program)
@@ -211,7 +211,7 @@ fn instruction_0x6xnn() {
     // instruction == 0x6XNN
     // store number nn in register VX
 
-    let mut cpu = Cpu::init();
+    let mut cpu = Cpu::init(false);
     let program: Vec<u8> = vec![0x6a, 0x51, 0x01, 0x11];
 
     // program -> 0x6a51, 0x0111
@@ -233,7 +233,7 @@ fn instruction_0x6xnn() {
 fn instruction_0x7xnn() {
     // instruction == 0x7XNN
     // add value NN to register VX (wrapping addition)
-    let mut cpu = Cpu::init();
+    let mut cpu = Cpu::init(false);
     let program: Vec<u8> = vec![0x7a, 0xff, 0x01, 0x11];
     cpu.gp_registers[0xa] = 0xff;
 
@@ -257,7 +257,7 @@ fn instruction_0x8xy0() {
     // instruction == 0x8XY0
     // store value of VY in VX
 
-    let mut cpu = Cpu::init();
+    let mut cpu = Cpu::init(false);
     let program: Vec<u8> = vec![0x8b, 0xa0, 0x01, 0x11];
     cpu.gp_registers[0xa] = 0xff;
 
@@ -280,7 +280,7 @@ fn instruction_0x8xy1() {
     // instruction == 0x8XY1
     // set VX = VX | VY
 
-    let mut cpu = Cpu::init();
+    let mut cpu = Cpu::init(false);
     let program: Vec<u8> = vec![0x8a, 0xb1, 0x01, 0x11];
     cpu.gp_registers[0xa] = 0xf0;
     cpu.gp_registers[0xb] = 0x0f;
@@ -301,7 +301,7 @@ fn instruction_0x8xy2() {
     // instruction == 0x8XY2
     // set VX = VX & VY
 
-    let mut cpu = Cpu::init();
+    let mut cpu = Cpu::init(false);
     let program: Vec<u8> = vec![0x8a, 0xb2, 0x01, 0x11];
     cpu.gp_registers[0xa] = 0xf0;
     cpu.gp_registers[0xb] = 0x0f;
@@ -321,7 +321,7 @@ fn instruction_0x8xy2() {
 fn instruction_0x8xy3() {
     // instruction == 0x8XY3
     // set VX = VX ^ VY
-    let mut cpu = Cpu::init();
+    let mut cpu = Cpu::init(false);
     let program: Vec<u8> = vec![0x8a, 0xb5, 0x01, 0x11];
     cpu.gp_registers[0xa] = 0xff;
     cpu.gp_registers[0xb] = 0x0f;
@@ -342,7 +342,7 @@ fn instruction_0x8xy4() {
     // instruction == 0x8XY4
     // set VX = VX + VY. set VF = 0x01 if carry occurs, otherwise set VF = 0x00
 
-    let mut cpu = Cpu::init();
+    let mut cpu = Cpu::init(false);
     let program: Vec<u8> = vec![0x8a, 0xb4, 0x01, 0x11];
 
     // for no carry
@@ -378,7 +378,7 @@ fn instruction_0x8xy5() {
     // instruction == 0x8XY5
     // set VX = VX - VY. set VF = 0x00 if borrow occurs, otherwise set VF = 0x01
 
-    let mut cpu = Cpu::init();
+    let mut cpu = Cpu::init(false);
     let program: Vec<u8> = vec![0x8a, 0xb5, 0x01, 0x11];
 
     // for no borrow
@@ -414,7 +414,7 @@ fn instruction_0x8xy6() {
     // instruction == 0x8XY6
     // set VX = VY >> 1, set VF to the least significant bit of VY before shift. VY is unchanged
 
-    let mut cpu = Cpu::init();
+    let mut cpu = Cpu::init(false);
     let program: Vec<u8> = vec![0x8a, 0xb6, 0x01, 0x11];
 
     cpu.gp_registers[0xb] = 0x2;
@@ -437,7 +437,7 @@ fn instruction_0x8xy7() {
     // instruction == 0x8XY7
     // set VX = VY - VX. set VF = 0x00 if borrow occcurs, otherwise set VF = 0x01
 
-    let mut cpu = Cpu::init();
+    let mut cpu = Cpu::init(false);
     let program: Vec<u8> = vec![0x8a, 0xb7, 0x01, 0x11];
 
     // for no borrow
@@ -473,7 +473,7 @@ fn instruction_8xye() {
     // instruction == 0x8XYE
     // set VX = VY << 1, set VF to the most significant bit of VY before shift. VY is unchanged
 
-    let mut cpu = Cpu::init();
+    let mut cpu = Cpu::init(false);
     let program: Vec<u8> = vec![0x8a, 0xbe, 0x01, 0x11];
 
     cpu.gp_registers[0xb] = 0x2;

@@ -2,14 +2,14 @@ use crate::cpu::Cpu;
 use rand::{Rng, RngCore};
 #[test]
 fn large_program_fails() {
-    let mut chip8 = Cpu::init();
-    let large_data = vec![0u8; 3216];
+    let mut chip8 = Cpu::init(false);
+    let large_data = vec![0u8; 10000];
     let res = chip8.add_program(&large_data);
     assert!(res.is_err());
 }
 #[test]
 fn program_init_success() {
-    let mut chip8 = Cpu::init();
+    let mut chip8 = Cpu::init(false);
     let mut rng = rand::thread_rng();
 
     let mut program: Vec<u8> = vec![0u8; rng.gen_range(0..=800)];
