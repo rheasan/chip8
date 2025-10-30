@@ -160,7 +160,8 @@ impl Cpu {
     pub fn dump_everything(&self) {
         self.dump(true, self.program_end_addr - 0x200);
     }
-    pub fn step(&mut self, keyboard: &KeyBoard) -> Result<(), ExecuteError> {
+    // Returns Ok(true) if d_buffer was updated
+    pub fn step(&mut self, keyboard: &KeyBoard) -> Result<bool, ExecuteError> {
         let instruction = self.get_next_instruction()?;
         let nnn = (instruction & 0x0fff) as usize;
         // x only contains 4 bits so can access gp_registers without bound check
@@ -653,7 +654,7 @@ impl Cpu {
             }
         }
 
-        Ok(())
+        Ok(instruction & 0xd000 == 0xd000)
     }
     #[inline]
     fn is_valid_program_addr(&self, addr: usize) -> bool {
@@ -689,32 +690,24 @@ impl Cpu {
         let mut should_set_flag = false;
         let sprite_start = self.i as usize;
         let sprite_end = sprite_start + n as usize;
-        // FIXME: this is not the correct way to stop execution of sprites
-        // if sprite_start <= self.program_end_addr ||  sprite_end <= self.program_end_addr {
-        //     return Err(ExecuteError::InvalidSprite);
-        // }
 
         let mut coord_x = x as usize % WIDTH;
         let mut coord_y = y as usize % HEIGHT;
 
-        let sprite = Vec::from(&self.mem[sprite_start..sprite_end]);
-
         // each byte in the display buffer corresponds to a pixel and a bit in the sprite
         // each sprite is always 1 byte wide and 1 to 15 pixels tall
         let mut d_buffer = self.d_buffer.borrow_mut();
-        for byte in sprite {
-            let mut b = byte;
+        for byte in self.mem[sprite_start..sprite_end].iter_mut() {
+            let b = byte;
             for _ in 0..8 {
                 let index = coord_x + coord_y * WIDTH;
                 let prev_value = d_buffer[index];
                 // the sprite is drawn by xoring with the current value not by setting a new value
-                d_buffer[index] ^= (b & 0x80) >> 7;
+                d_buffer[index] ^= (*b & 0x80) >> 7;
+                should_set_flag |= prev_value == 1 && d_buffer[index] == 0;
 
-                if prev_value == 1 && d_buffer[index] == 0 {
-                    should_set_flag = true;
-                }
                 coord_x += 1;
-                b <<= 1;
+                *b <<= 1;
             }
             coord_y += 1;
             coord_x = x as usize % WIDTH;

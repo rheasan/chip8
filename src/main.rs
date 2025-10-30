@@ -10,8 +10,8 @@ mod tests;
 fn main() -> Result<(), Box<dyn Error>> {
     if let Some(args) = cli::parse_args() {
         match args {
-            cli::Chip8Command::Emulate { src, debug } => {
-                let mut chip8 = chip8::Chip8::new(debug);
+            cli::Chip8Command::Emulate { src, debug, timing } => {
+                let mut chip8 = chip8::Chip8::new(debug, timing);
                 emulate::emulate(src, &mut chip8)?;
             }
             cli::Chip8Command::PrintKeyMap => {

@@ -1,7 +1,11 @@
 use clap::{Arg, ArgAction, Command};
 
 pub enum Chip8Command {
-    Emulate { src: String, debug: bool },
+    Emulate {
+        src: String,
+        debug: bool,
+        timing: bool,
+    },
     PrintKeyMap,
 }
 
@@ -29,6 +33,14 @@ pub fn parse_args() -> Option<Chip8Command> {
                         .short('d')
                         .action(ArgAction::SetTrue)
                         .required(false),
+                )
+                .arg(
+                    Arg::new("timing")
+                        .help("print time taken per consecutive instructions")
+                        .long("timing")
+                        .short('t')
+                        .action(ArgAction::SetTrue)
+                        .required(false)
                 ),
         )
         .subcommand(Command::new("keymap").about("print keymap"))
@@ -42,7 +54,8 @@ pub fn parse_args() -> Option<Chip8Command> {
 
             let src = emulate_args.get_one::<String>("src")?.to_owned();
             let debug = *emulate_args.get_one::<bool>("debug").unwrap_or(&false);
-            return Some(Chip8Command::Emulate { src, debug });
+            let timing = *emulate_args.get_one::<bool>("timing").unwrap_or(&false);
+            return Some(Chip8Command::Emulate { src, debug, timing });
         }
         Some(("keymap", _)) => return Some(Chip8Command::PrintKeyMap),
         _ => unreachable!(),
