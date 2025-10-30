@@ -67,14 +67,14 @@ impl Chip8 {
                     (self.timing_data.avg * (self.timing_data.instructions - 1) as f64 + elapsed)
                         / (self.timing_data.instructions as f64);
             }
-            // self.reset_keys();
+            self.reset_keys();
             match res {
                 Ok(did_draw) => {
                     self.check_keypresses();
                     if did_draw {
                         self.update_window();
                     }
-                    // sleep(Duration::from_millis(1000 / 60));
+                    sleep(Duration::from_millis(1000 / 60));
                 }
                 Err(e) => {
                     eprintln!("{}", e.to_string());

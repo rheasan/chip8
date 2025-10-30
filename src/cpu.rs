@@ -698,16 +698,16 @@ impl Cpu {
         // each sprite is always 1 byte wide and 1 to 15 pixels tall
         let mut d_buffer = self.d_buffer.borrow_mut();
         for byte in self.mem[sprite_start..sprite_end].iter_mut() {
-            let b = byte;
+            let mut b = *byte;
             for _ in 0..8 {
                 let index = coord_x + coord_y * WIDTH;
                 let prev_value = d_buffer[index];
                 // the sprite is drawn by xoring with the current value not by setting a new value
-                d_buffer[index] ^= (*b & 0x80) >> 7;
+                d_buffer[index] ^= (b & 0x80) >> 7;
                 should_set_flag |= prev_value == 1 && d_buffer[index] == 0;
 
                 coord_x += 1;
-                *b <<= 1;
+                b <<= 1;
             }
             coord_y += 1;
             coord_x = x as usize % WIDTH;
