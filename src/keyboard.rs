@@ -15,13 +15,6 @@ impl KeyBoard {
         self.key_pressed
     }
 
-    pub fn block_until_keypress(&self) -> u8 {
-        while self.key_pressed.is_none() {
-            sleep(Duration::from_millis(100));
-        }
-        self.key_pressed.unwrap()
-    }
-
     pub fn set_key_pressed(&mut self, key: Option<&Key>) {
         if key.is_none() {
             return;

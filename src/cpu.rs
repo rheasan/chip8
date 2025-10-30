@@ -1,4 +1,9 @@
-use std::{cell::RefCell, fmt::Debug, rc::Rc};
+use std::{
+    cell::RefCell,
+    fmt::Debug,
+    rc::Rc,
+    time::{Duration, Instant},
+};
 
 use crate::keyboard::KeyBoard;
 
@@ -38,8 +43,8 @@ pub struct Cpu {
     pub pc: usize,
     pub sp: u8,
     pub stack: Vec<usize>,
-    pub delay_timer: u8,
-    pub sound_timer: u8,
+    pub delay_timer: (u8, Instant),
+    pub sound_timer: (u8, Instant),
     pub program_end_addr: usize,
     pub debug: bool,
 }
@@ -65,7 +70,6 @@ pub enum ExecuteError {
     MaxCallDepthReached(u16),
     BadReturn(u16),
     BadJumpAddr(u16),
-    InvalidSprite,
 }
 impl ToString for ExecuteError {
     fn to_string(&self) -> String {
@@ -74,7 +78,6 @@ impl ToString for ExecuteError {
             ExecuteError::BadInstruction(i) => format!("Bad instruction: {:#04}", i),
             ExecuteError::BadJumpAddr(addr) => format!("Bad Jump Address: {:#04}", addr),
             ExecuteError::BadReturn(addr) => format!("Bad return Address: {:#04}", addr),
-            ExecuteError::InvalidSprite => String::from("Invalid Sprite"),
             ExecuteError::MaxCallDepthReached(i) => format!("Max call depth reached: {:#04}", i),
         }
     }
@@ -94,8 +97,8 @@ impl Cpu {
             pc: 0x200,
             sp: 0,
             stack: Vec::new(),
-            delay_timer: 0,
-            sound_timer: 0,
+            delay_timer: (0, Instant::now()),
+            sound_timer: (0, Instant::now()),
             program_end_addr: 0,
             debug: debug,
         };
@@ -124,8 +127,8 @@ impl Cpu {
         self.pc = 0x0200;
         self.sp = 0;
         self.stack.clear();
-        self.delay_timer = 0;
-        self.sound_timer = 0;
+        self.delay_timer = (0, Instant::now());
+        self.sound_timer = (0, Instant::now());
         self.mem[0x200..=self.program_end_addr].fill(0);
     }
 
@@ -160,19 +163,15 @@ impl Cpu {
     pub fn step(&mut self, keyboard: &KeyBoard) -> Result<(), ExecuteError> {
         let instruction = self.get_next_instruction()?;
         let nnn = (instruction & 0x0fff) as usize;
-        // x only contains 4 bits so can access gp_resgisters without bound check
+        // x only contains 4 bits so can access gp_registers without bound check
         let x = ((instruction & 0x0f00) >> 8) as usize;
         let y = ((instruction & 0x00f0) >> 4) as usize;
         let nn = (instruction & 0x00ff) as u8;
         let n = (instruction & 0x000f) as u8;
 
-        if self.delay_timer != 0 {
-            self.delay_timer -= 1;
-        }
+        let changed = Cpu::handle_timer(&mut self.sound_timer);
 
-        if self.sound_timer != 0 {
-            self.sound_timer -= 1;
-        }
+        let _ = Cpu::handle_timer(&mut self.delay_timer);
 
         match instruction & 0xf000 {
             0x0000 => {
@@ -546,9 +545,9 @@ impl Cpu {
                         // instruction == 0xFX07
                         // store current value of delay timer in VX
                         if self.debug {
-                            println!("ld v{:x} dt {:x}", x, self.delay_timer);
+                            println!("ld v{:x} dt {:x}", x, self.delay_timer.0);
                         }
-                        self.gp_registers[x] = self.delay_timer;
+                        self.gp_registers[x] = self.delay_timer.0;
                         self.pc += 2;
                     }
                     0x0A => {
@@ -572,7 +571,7 @@ impl Cpu {
                         if self.debug {
                             println!("ld dt v{:x}", x);
                         }
-                        self.delay_timer = self.gp_registers[x];
+                        self.delay_timer = (self.gp_registers[x], Instant::now());
                         self.pc += 2;
                     }
                     0x18 => {
@@ -581,7 +580,7 @@ impl Cpu {
                         if self.debug {
                             println!("ld st v{:x}", x);
                         }
-                        self.sound_timer = self.gp_registers[x];
+                        self.sound_timer = (self.gp_registers[x], Instant::now());
                         self.pc += 2;
                     }
                     0x1e => {
@@ -669,6 +668,20 @@ impl Cpu {
         }
         let instruction = (*byte_1.unwrap() as u16) << 8 | *byte_2.unwrap() as u16;
         Ok(instruction)
+    }
+
+    fn handle_timer(timer: &mut (u8, Instant)) -> bool {
+        let (ref mut s_timer, ref mut last_op) = timer;
+        if *s_timer == 0 {
+            return false;
+        }
+
+        if Instant::now().duration_since(*last_op) >= Duration::from_micros(1_000_000 / 60) {
+            *s_timer -= 1;
+            *last_op = Instant::now();
+            return true;
+        }
+        return false;
     }
 
     fn draw_sprite(&mut self, n: u8, x: u8, y: u8) -> Result<bool, ExecuteError> {
